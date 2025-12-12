@@ -1,36 +1,170 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🧠 HackSphere — AI-Powered Events Discovery & Team Matching Platform
+### Built by Team 42X007
 
-## Getting Started
+---
 
-First, run the development server:
+## 🚀 Overview
+HackSphere is an AI-driven platform designed to help students discover relevant events, competitions and instantly form high-performance teams. It analyzes events using Google Gemini, computes personalized fit scores, and recommends ideal teammates based on skills, experience, and interests.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+Built for university ecosystems, CompeteSync automates the entire journey:
+discover → understand → match → participate.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 🎯 Problem Statement
+Students face real challenges:
+- Difficult to find competitions aligned with their skills  
+- Hard to form balanced and complementary teams  
+- Event details are scattered across multiple platforms  
+- No AI system exists to simplify decision-making for participation  
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+CompeteSync solves all of this through AI automation, Google Cloud infrastructure, and real-time recommendation pipelines.
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## ✨ Key Features
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 1. Competition Aggregation
+Automatically scrapes competitions from:
+- GDG / Google Events  
+- Devpost  
+- MLH  
+- Hack2Skill  
+- Unstop  
+- University innovation portals  
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+All events are normalized and stored in Firestore.
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 2. Gemini-Powered Event Understanding
+Google Gemini processes each competition to extract:
+- Required skills  
+- Difficulty rating  
+- Estimated team size  
+- Time commitment  
+- AI-generated event summary  
+- Category classification (AI/Web/Cloud/Startup/etc.)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+
+### 3. Personalized Fit Score
+The platform computes a score (0–100%) based on:
+- User’s skills  
+- Interests  
+- Past experience  
+- Project history  
+- Learning goals  
+
+Competitions are ranked for each user using a custom scoring model.
+
+---
+
+### 4. AI Team Matching Engine
+Suggests an optimized team by analyzing:
+- Complementary skills  
+- Collaboration styles  
+- Strength–weakness balance  
+- Needed roles (frontend/backend/cloud/ML/design)  
+
+Gemini also generates:
+- Team composition reasoning  
+- Suggested role distribution  
+
+---
+
+### 5. Modern Dashboard UI
+Built using Next.js + Tailwind:
+- Competition feed  
+- Team suggestions  
+- Profile panel  
+- Filters & sorting  
+- Onboarding modal  
+- Real-time updates  
+
+Designed for clarity and speed.
+
+---
+
+# 🛠️ Tech Stack Overview
+
+## Frontend
+- Next.js 14 (App Router)
+- TypeScript
+- Tailwind CSS
+- Zustand / React Context
+- Dynamic & SSR components
+
+---
+
+## Backend
+- FastAPI (Python)
+- Gemini API integration
+- Scraper engine (BeautifulSoup/Playwright)
+- Firestore Admin SDK
+- Custom AI matching algorithms
+
+---
+
+## Google Cloud Usage
+### Cloud Run
+- Main backend deployment  
+- Auto-scaling microservice  
+
+### Cloud Scheduler
+- Runs competition scrapers (cron)
+
+### Cloud Logging
+- Backend logs + monitoring
+
+---
+
+## Firebase Usage
+- Firebase Auth → user login  
+- Cloud Firestore → competitions, profiles, match data  
+- Admin SDK → backend write operations  
+
+---
+
+# 🏛️ System Architecture
+
+Frontend (Next.js)
+    │
+    ▼
+Backend API (FastAPI + Gemini)
+    │
+    ▼
+Firestore Database
+    │
+    ▲
+Scraper Engine (Cron Jobs)
+
+---
+
+# 🧪 Running Locally
+
+## Frontend
+
+cd frontend </br>
+npm install </br>
+npm run dev </br>
+
+
+## Backend
+
+cd backend </br>
+pip install -r requirements.txt </br>
+uvicorn app.main:app --reload </br>
+
+---
+
+# 🌐 Deployment (Google Cloud)
+- Build Docker image  
+- Deploy backend → Cloud Run  
+- Configure environment variables  
+- Connect Firebase & Firestore  
+- Connect Next.js frontend to backend URL  
+
+---
+
+Team 42X007
