@@ -1,4 +1,4 @@
-# 🧠 HackSphere — AI-Powered Events Discovery & Team Matching Platform
+# 🧠 HackFlix — AI-Powered Events Discovery & Team Matching Platform
 ### Built by Team 42X007
 
 ---
