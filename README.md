@@ -1,10 +1,10 @@
-# 🧠 CompeteSync — AI-Powered Competition Discovery & Team Matching Platform
+# 🧠 HackSphere — AI-Powered Events Discovery & Team Matching Platform
 ### Built by Team 42X007
 
 ---
 
 ## 🚀 Overview
-CompeteSync is an AI-driven platform designed to help students discover relevant competitions and instantly form high-performance teams. It analyzes events using Google Gemini, computes personalized fit scores, and recommends ideal teammates based on skills, experience, and interests.
+HackSphere is an AI-driven platform designed to help students discover relevant events, competitions and instantly form high-performance teams. It analyzes events using Google Gemini, computes personalized fit scores, and recommends ideal teammates based on skills, experience, and interests.
 
 Built for university ecosystems, CompeteSync automates the entire journey:
 discover → understand → match → participate.
@@ -141,45 +141,20 @@ Scraper Engine (Cron Jobs)
 
 ---
 
-# 📁 Project Structure
-
-frontend/
-  ├── src/
-  │   ├── app/                # pages, routes
-  │   ├── components/         # UI + dashboard components
-  │   ├── lib/                # firebase, api, utils
-  │   ├── services/           # frontend APIs
-  │   ├── store/              # global state
-  │   ├── types/              # TS types
-  │   └── hooks/              # custom hooks
-
-backend/
-  ├── app/
-  │   ├── api/                # FastAPI routes
-  │   ├── services/           # Gemini, Firestore, scoring, matching
-  │   ├── scrapers/           # event ingestion
-  │   ├── models/             # Pydantic models
-  │   ├── utils/              # logs, helpers
-  │   └── config/             # env, firebase setup
-  ├── requirements.txt
-  └── Dockerfile
-
----
-
 # 🧪 Running Locally
 
 ## Frontend
 
-cd frontend
-npm install
-npm run dev
+cd frontend </br>
+npm install </br>
+npm run dev </br>
 
 
 ## Backend
 
-cd backend
-pip install -r requirements.txt
-uvicorn app.main:app --reload
+cd backend </br>
+pip install -r requirements.txt </br>
+uvicorn app.main:app --reload </br>
 
 ---
 
