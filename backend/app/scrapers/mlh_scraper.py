@@ -6,7 +6,8 @@ from urllib.parse import urlparse, urljoin
 from bs4 import BeautifulSoup
 
 from app.engine.base_scraper import BaseScraper
-from app.services.scraper_service import fetch_html_playwright
+from app.services.scraper_service import fetch_html
+from app.utils.extractor import extract_event_data   # <<– structured extractor
 
 LOG = logging.getLogger("MLHScraper")
 LOG.setLevel(logging.INFO)
@@ -14,72 +15,66 @@ LOG.setLevel(logging.INFO)
 
 class MLHScraper(BaseScraper):
     """
-    MLH scraper — FULL PAGE MODE
-    - Extracts ALL event links from the season page
-    - Extracts FULL HTML for each event (no fragile CSS selectors)
-    - Leaves parsing of details to AI/LLM layer
+    MLH scraper — STRUCTURED MODE
+    Extract only human-visible structured info:
+    - title
+    - description
+    - date/deadline
+    - location
+    - tags
+    No raw HTML stored.
     """
 
     def crawl(self, url: str) -> Tuple[Dict, List[str]]:
         parsed = urlparse(url)
 
-        # =======================================================================
-        # LIST PAGE HANDLER: https://mlh.io/seasons/2025/events
-        # =======================================================================
+        # ============================================================
+        # LIST PAGE
+        # ============================================================
         if "mlh.io/seasons" in url and url.endswith("/events"):
-            LOG.info("[MLH] Fetching MLH event list page (HTML + JS)")
+            LOG.info("[MLH] Fetching MLH event list page")
 
-            html = fetch_html_playwright(url)
+            html = fetch_html(url, force_browser=True)
             if not html:
-                LOG.warning("[MLH] Could not fetch MLH events page")
+                LOG.warning("[MLH] Could not load MLH event list")
                 return None, []
 
             soup = BeautifulSoup(html, "html.parser")
-
             event_links = []
 
-            # ANY <a> tag that contains "/events/" → treat as event link
+            # <a href="/events/xxxx">
             for a in soup.find_all("a", href=True):
                 href = a["href"]
+
                 if "/events/" not in href:
                     continue
 
                 abs_url = urljoin(url, href)
                 if abs_url not in event_links:
                     event_links.append(abs_url)
-                    LOG.info(f"[MLH] EVENT FOUND → {abs_url}")
+                    LOG.info(f"[MLH] Event URL → {abs_url}")
 
-            LOG.info(f"[MLH] TOTAL EVENTS FOUND: {len(event_links)}")
+            LOG.info(f"[MLH] Total events discovered: {len(event_links)}")
 
             return None, event_links
 
-        # =======================================================================
-        # DETAIL PAGE HANDLER: https://mlh.io/events/xxxx
-        # =======================================================================
+        # ============================================================
+        # DETAIL PAGE
+        # ============================================================
         if parsed.netloc.endswith("mlh.io") and "/events/" in parsed.path:
-            LOG.info(f"[MLH] Fetching FULL EVENT PAGE: {url}")
+            LOG.info(f"[MLH] Fetching event detail page → {url}")
 
-            html = fetch_html_playwright(url)
+            html = fetch_html(url, force_browser=True)
             if not html:
-                LOG.warning(f"[MLH] Failed to load event detail page: {url}")
+                LOG.warning(f"[MLH] Failed to load event detail: {url}")
                 return None, []
 
-            soup = BeautifulSoup(html, "html.parser")
-
-            # Try a weak title extraction (non-critical)
-            title_el = soup.find("h1") or soup.find("h2")
-            title = title_el.get_text(strip=True) if title_el else ""
-
-            data = {
-                "title": title,
-                "link": url,
-                "source": "MLH",
-                "raw_html": html   # FULL HTML for LLM processing later
-            }
+            # Use the unified structured extractor
+            data = extract_event_data(html, url, "MLH")
 
             return data, []
 
-        # =======================================================================
-        # UNKNOWN URL — do nothing
-        # =======================================================================
+        # ============================================================
+        # NOT MLH → IGNORE
+        # ============================================================
         return None, []
