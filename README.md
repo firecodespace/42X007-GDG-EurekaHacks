@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://your-domain.com/path-to-logo.png" alt="HackFlix Logo" width="200"/>
+  <img src="[https://your-domain.com/path-to-logo.png](https://github.com/firecodespace/42X007-GDG-EurekaHacks/blob/main/public/hackflix_logo.jpg)" alt="HackFlix Logo" width="200"/>
 </div>
 
 # 🧠 HackFlix, AI Powered Events Discovery & Team Matching Platform
