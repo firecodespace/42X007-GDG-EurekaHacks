@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="https://your-domain.com/path-to-logo.png" alt="HackFlix Logo" width="200"/>
+</div>
+
 # 🧠 HackFlix, AI Powered Events Discovery & Team Matching Platform
 ### Built by Team 42X007
 
