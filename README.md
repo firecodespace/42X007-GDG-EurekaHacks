@@ -1,9 +1,10 @@
-<div align="center">
-  <img src="[https://your-domain.com/path-to-logo.png](https://github.com/firecodespace/42X007-GDG-EurekaHacks/blob/main/public/hackflix_logo.jpg)" alt="HackFlix Logo" width="200"/>
-</div>
+<p align="center">
+  <img src="./public/hackflix_logo.jpg" alt="HackFlix Logo" width="250"/>
+</p>
 
-# 🧠 HackFlix, AI Powered Events Discovery & Team Matching Platform
-### Built by Team 42X007
+<h1 align="center">🧠 HackFlix</h1>
+<h3 align="center">AI Powered Events Discovery & Team Matching Platform</h3>
+<p align="center">Built by Team 42X007</p>
 
 ---
 
