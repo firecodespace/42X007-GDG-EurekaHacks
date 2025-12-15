@@ -1,77 +1,106 @@
 from bs4 import BeautifulSoup
 import re
 
-def safe(node):
-    return node.get_text(" ", strip=True) if node else ""
+STOPWORDS = [
+    "log in", "sign up", "register", "cookie", "privacy",
+    "terms", "sponsor", "apply", "submit", "dashboard"
+]
+
+DESCRIPTION_KEYWORDS = [
+    "about", "overview", "description", "details",
+    "what is", "why", "who should", "event", "hackathon"
+]
+
+
+def safe_text(node):
+    if not node:
+        return ""
+    return " ".join(node.get_text(" ", strip=True).split())
+
+
+def score_block(text: str) -> int:
+    """Score text block by semantic relevance"""
+    score = 0
+    t = text.lower()
+
+    # Length matters
+    if len(text) > 150:
+        score += 2
+    if len(text) > 400:
+        score += 4
+
+    # Semantic hints
+    for kw in DESCRIPTION_KEYWORDS:
+        if kw in t:
+            score += 3
+
+    # Penalize junk
+    for bad in STOPWORDS:
+        if bad in t:
+            score -= 5
+
+    # Penalize forms
+    if "required" in t or "username" in t or "email" in t:
+        score -= 6
+
+    return score
 
 
 def extract_event_data(html: str, url: str, source: str):
     soup = BeautifulSoup(html, "html.parser")
 
-    # =========================================================
+    # --------------------------------------------------
     # TITLE
-    # =========================================================
-    title = safe(soup.select_one("h1")) or safe(soup.select_one(".event-title"))
+    # --------------------------------------------------
+    title = safe_text(soup.find("h1")) or safe_text(soup.find("h2"))
 
-    # =========================================================
-    # FULL TEXT (for pattern extraction)
-    # =========================================================
-    full_text = safe(soup.select_one("main")) or safe(soup)
+    # --------------------------------------------------
+    # FULL VISIBLE TEXT (for pattern mining)
+    # --------------------------------------------------
+    full_text = safe_text(soup.find("main")) or safe_text(soup)
 
-    # =========================================================
-    # DEADLINE DETECTION
-    # MLH dates appear like:
-    # “Friday July 12, 2024 11:00AM to Jul 14, 12:00PM EST”
-    # =========================================================
-    date_pattern = r"[A-Za-z]+\s+[A-Za-z]+\s+\d{1,2},\s+\d{4}.*?EST"
+    # --------------------------------------------------
+    # DATE / DEADLINE
+    # --------------------------------------------------
+    date_pattern = r"[A-Za-z]+\s+[A-Za-z]+\s+\d{1,2},\s+\d{4}.*?(AM|PM).*?(EST|PST|GMT)?"
     date_match = re.search(date_pattern, full_text)
 
     deadline = date_match.group(0) if date_match else ""
 
-    # =========================================================
-    # LOCATION DETECTION
-    # MLH typically shows:
-    #  - "Event is hosted online"
-    #  - "Online"
-    #  - "In Person — XYZ"
-    # =========================================================
-    location = ""
+    # --------------------------------------------------
+    # LOCATION
+    # --------------------------------------------------
+    location = "Online" if "hosted online" in full_text.lower() else ""
 
-    if "hosted online" in full_text.lower():
-        location = "Online"
-    else:
-        # Look for any line containing "Location"
-        loc_match = re.search(r"Location[:\s]+(.+)", full_text, re.IGNORECASE)
+    if not location:
+        loc_match = re.search(r"(location|where)[:\s]+(.+)", full_text, re.I)
         if loc_match:
-            location = loc_match.group(1).strip()
+            location = loc_match.group(2).strip()
 
-        # Fallback: look for visible location sections
-        if not location:
-            possible_locs = soup.find_all(["p", "div"], string=True)
-            for text in possible_locs:
-                t = text.get_text(strip=True)
-                if "Online" in t:
-                    location = "Online"
-                    break
-                if "In Person" in t or "Hybrid" in t:
-                    location = t
-                    break
+    # --------------------------------------------------
+    # DESCRIPTION (Semantic Aggregation)
+    # --------------------------------------------------
+    candidates = []
 
-    # =========================================================
-    # DESCRIPTION EXTRACTION
-    # =========================================================
-    desc_node = (
-        soup.select_one(".markdown")
-        or soup.select_one(".event-details")
-        or soup.select_one("section")
-        or soup.find("p")
-    )
+    for tag in soup.find_all(["p", "div", "section", "article"]):
+        text = safe_text(tag)
+        if len(text) < 80:
+            continue
+        score = score_block(text)
+        if score > 0:
+            candidates.append((score, text))
 
-    description = safe(desc_node)
+    candidates.sort(reverse=True, key=lambda x: x[0])
 
-    # =========================================================
-    # FINAL STRUCTURED OUTPUT
-    # =========================================================
+    description = " ".join(text for _, text in candidates[:3])
+
+    # Fallback
+    if not description:
+        description = full_text[:800]
+
+    # --------------------------------------------------
+    # OUTPUT
+    # --------------------------------------------------
     return {
         "title": title,
         "link": url,
@@ -79,5 +108,8 @@ def extract_event_data(html: str, url: str, source: str):
         "location": location,
         "deadline": deadline,
         "raw_description": description,
-        "tags": []   # MLH provides no tags; ignore form fields
+        "confidence": {
+            "description_blocks": len(candidates),
+            "top_score": candidates[0][0] if candidates else 0
+        }
     }
