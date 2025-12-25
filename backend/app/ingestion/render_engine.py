@@ -1,27 +1,21 @@
-# app/ingestion/render_engine.py
-
-import logging
 from playwright.sync_api import sync_playwright
 
-LOG = logging.getLogger("render_engine")
+_browser = None
 
-def render(url: str, timeout: int = 20000) -> str | None:
+def get_browser():
+    global _browser
+    if _browser is None:
+        p = sync_playwright().start()
+        _browser = p.chromium.launch(headless=True)
+    return _browser
+
+def render(url: str, timeout=20000):
     try:
-        with sync_playwright() as p:
-            browser = p.chromium.launch(
-                channel="chrome",
-                headless=False,
-                args=["--disable-blink-features=AutomationControlled"]
-            )
-            page = browser.new_page()
-            page.set_default_timeout(timeout)
-            page.goto(url, wait_until="domcontentloaded")
-            page.wait_for_timeout(4000)
-
-            html = page.content()
-            browser.close()
-            return html
-
-    except Exception as e:
-        LOG.warning(f"[render_engine] {url} failed: {e}")
+        browser = get_browser()
+        page = browser.new_page()
+        page.goto(url, timeout=timeout, wait_until="domcontentloaded")
+        html = page.content()
+        page.close()
+        return html
+    except Exception:
         return None

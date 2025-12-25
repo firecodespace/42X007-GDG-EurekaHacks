@@ -1,14 +1,22 @@
-SOURCES = {
-    "mlh": {
-        "seeds": ["https://mlh.io/seasons/2025/events"],
-        "allowed_domains": ["mlh.io", "events.mlh.io"]
+# app/registry/sources.py
+
+ALL_SOURCES = [
+    {
+        "name": "MLH",
+        "seed": "https://mlh.io/seasons/2025/events",
+        "domains": ["mlh.io", "events.mlh.io"],
+        "fetch_mode": "browser"   # 👈 IMPORTANT
     },
-    "devpost": {
-        "seeds": ["https://devpost.com/hackathons"],
-        "allowed_domains": ["devpost.com"]
+    {
+        "name": "Devpost",
+        "seed": "https://devpost.com/hackathons",
+        "domains": ["devpost.com"],
+        "fetch_mode": "http"
     },
-    "unstop": {
-        "seeds": ["https://unstop.com/hackathons"],
-        "allowed_domains": ["unstop.com"]
+    {
+        "name": "Unstop",
+        "seed": "https://unstop.com/hackathons",
+        "domains": ["unstop.com"],
+        "fetch_mode": "http"
     }
-}
+]

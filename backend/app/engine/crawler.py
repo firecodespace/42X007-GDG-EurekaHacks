@@ -7,15 +7,23 @@ from app.intelligence.link_scoring import score_link
 from app.ingestion.fetch_engine import fetch
 from app.ingestion.render_engine import render
 
+
 class Crawler:
-    def __init__(self, seeds, allowed_domains, max_pages=200):
+    def __init__(
+        self,
+        seeds,
+        allowed_domains,
+        fetch_mode="http",
+        max_pages=200
+    ):
         self.queue = deque(seeds)
         self.visited = set()
         self.allowed_domains = allowed_domains
+        self.fetch_mode = fetch_mode
         self.max_pages = max_pages
 
     def allowed(self, url):
-        host = urlparse(url).netloc
+        host = urlparse(url).netloc.lower()
         return any(host.endswith(d) for d in self.allowed_domains)
 
     def run(self):
@@ -23,13 +31,21 @@ class Crawler:
 
         while self.queue and len(pages) < self.max_pages:
             url = self.queue.popleft()
+
             if url in self.visited or not self.allowed(url):
                 continue
 
             self.visited.add(url)
 
-            html = fetch(url)
-            if not html:
+            html = None
+
+            # -----------------------------------
+            # FETCH STRATEGY
+            # -----------------------------------
+            if self.fetch_mode == "http":
+                html = fetch(url)
+
+            if not html and self.fetch_mode == "browser":
                 html = render(url)
 
             if not html:
@@ -37,12 +53,13 @@ class Crawler:
 
             pages[url] = html
 
-            # discover new links
-            for part in html.split("href=\""):
-                link = part.split("\"")[0]
-                if link.startswith("http"):
-                    score = score_link(link)
-                    if score > 0:
+            # -----------------------------------
+            # LINK DISCOVERY
+            # -----------------------------------
+            for part in html.split('href="')[1:]:
+                link = part.split('"')[0]
+                if link.startswith("http") and self.allowed(link):
+                    if score_link(link) > 0:
                         self.queue.append(link)
 
         return pages
