@@ -1,9 +1,4 @@
-from fastapi import FastAPI
-from app.api import competitions, match, profile, health
+from app.scheduler.harvester import run_forever
 
-app = FastAPI()
-
-app.include_router(competitions.router, prefix="/competitions")
-app.include_router(match.router, prefix="/match")
-app.include_router(profile.router, prefix="/profile")
-app.include_router(health.router, prefix="/health")
+if __name__ == "__main__":
+    run_forever(interval_minutes=60)

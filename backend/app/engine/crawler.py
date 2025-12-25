@@ -1,102 +1,48 @@
-# backend/app/engine/crawler.py
-import time
-import random
-import logging
+# app/engine/crawler.py
+
 from collections import deque
-from typing import List, Optional, Tuple, Dict
-from urllib.parse import urlparse, urljoin
+from urllib.parse import urljoin, urlparse
 
-from app.engine.registry import get_scraper_for_url
-from app.utils.robots import is_allowed
-
-LOG = logging.getLogger("crawler")
-LOG.setLevel(logging.INFO)
-
+from app.intelligence.link_scoring import score_link
+from app.ingestion.fetch_engine import fetch
+from app.ingestion.render_engine import render
 
 class Crawler:
-    """
-    Lightweight crawler.
-    Use:
-        crawler = Crawler(delay=0.5)
-        results = crawler.crawl(start_url, allowed_domains=["mlh.io"], max_pages=100)
-    Returns list of data objects returned by scrapers.
-    """
+    def __init__(self, seeds, allowed_domains, max_pages=200):
+        self.queue = deque(seeds)
+        self.visited = set()
+        self.allowed_domains = allowed_domains
+        self.max_pages = max_pages
 
-    def __init__(self, delay: float = 0.5):
-        self.delay = delay
-        self.domain_last_request = {}
+    def allowed(self, url):
+        host = urlparse(url).netloc
+        return any(host.endswith(d) for d in self.allowed_domains)
 
-    def _domain_allowed(self, url: str, allowed_domains: Optional[List[str]]) -> bool:
-        if not allowed_domains:
-            return True
-        host = urlparse(url).netloc.lower()
-        return any(host == d or host.endswith("." + d) for d in allowed_domains)
+    def run(self):
+        pages = {}
 
-    def _throttle(self, url: str):
-        host = urlparse(url).netloc.lower()
-        last = self.domain_last_request.get(host, 0)
-        wait = max(0, self.delay + random.uniform(0.1, 0.3) - (time.time() - last))
-        if wait > 0:
-            time.sleep(wait)
-        self.domain_last_request[host] = time.time()
-
-    def crawl(
-        self,
-        start_url: str,
-        allowed_domains: Optional[List[str]] = None,
-        max_pages: int = 100
-    ) -> List[Dict]:
-        """
-        Crawl starting from `start_url`. Returns list of scraped data dicts.
-        """
-        LOG.info(f"[Crawler] Starting crawl: {start_url}")
-        queue = deque([start_url])
-        visited = set()
-        results: List[Dict] = []
-        count = 0
-
-        while queue and count < max_pages:
-            url = queue.popleft()
-
-            if url in visited:
+        while self.queue and len(pages) < self.max_pages:
+            url = self.queue.popleft()
+            if url in self.visited or not self.allowed(url):
                 continue
 
-            if not self._domain_allowed(url, allowed_domains):
-                LOG.debug(f"[Crawler] Skipping (domain not allowed): {url}")
-                visited.add(url)
+            self.visited.add(url)
+
+            html = fetch(url)
+            if not html:
+                html = render(url)
+
+            if not html:
                 continue
 
-            if not is_allowed(url):
-                LOG.info(f"[Crawler] Blocked by robots.txt: {url}")
-                visited.add(url)
-                continue
+            pages[url] = html
 
-            scraper = get_scraper_for_url(url)
-            if not scraper:
-                LOG.debug(f"[Crawler] No scraper registered for URL: {url}")
-                visited.add(url)
-                continue
+            # discover new links
+            for part in html.split("href=\""):
+                link = part.split("\"")[0]
+                if link.startswith("http"):
+                    score = score_link(link)
+                    if score > 0:
+                        self.queue.append(link)
 
-            self._throttle(url)
-
-            try:
-                data, links = scraper.crawl(url)
-            except Exception as e:
-                LOG.exception(f"[Crawler] Scraper error for {url}: {e}")
-                data, links = None, []
-
-            if data:
-                results.append(data)
-
-            visited.add(url)
-
-            # enqueue discovered links (make absolute)
-            for l in links or []:
-                abs_url = urljoin(url, l)
-                if abs_url not in visited:
-                    queue.append(abs_url)
-
-            count += 1
-
-        LOG.info(f"[Crawler] Finished. Collected: {len(results)} events (visited {len(visited)} pages)")
-        return results
+        return pages
