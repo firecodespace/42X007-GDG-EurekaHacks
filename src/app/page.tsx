@@ -180,7 +180,7 @@ export default function Home() {
             
             <div className="mb-6 pb-6 border-b border-white/10">
               <p className="text-base sm:text-lg text-white/80 leading-relaxed">
-                🍳 <span className="text-teal-300 font-semibold">Our website is cooking in the kitchen...</span>
+                <span className="text-teal-300 font-semibold">Website is being cooked...</span>
                 <br />
                 <span className="text-sm sm:text-base text-white/60">Meanwhile, try beating our AI at Tic-Tac-Toe! (Spoiler: You won't 😏)</span>
               </p>
