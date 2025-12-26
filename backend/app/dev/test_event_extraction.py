@@ -4,26 +4,33 @@ from pathlib import Path
 from app.extractors.event_extractor import extract_event
 
 
-HTML_FILE = Path("data/test/devpost_sample.html")
-OUTPUT_FILE = Path("data/test/output_event.json")
+# Point to REAL harvested data
+RAW_EVENT_JSON = Path("data/raw/devpost_latest.json")
+OUTPUT_JSON = Path("data/test/extracted_event.json")
 
 
 def main():
-    html = HTML_FILE.read_text(encoding="utf-8")
+    if not RAW_EVENT_JSON.exists():
+        raise FileNotFoundError(
+            f"Missing input file: {RAW_EVENT_JSON}\n"
+            "Run a harvest first."
+        )
 
-    event = extract_event(
-        html=html,
-        url="https://awspartyrockhackathon.devpost.com",
-        source="Devpost"
+    raw = json.loads(RAW_EVENT_JSON.read_text(encoding="utf-8"))
+
+    html = raw["html"]
+    url = raw.get("url", "unknown")
+
+    event = extract_event(html, source="Devpost", url=url)
+
+    OUTPUT_JSON.parent.mkdir(parents=True, exist_ok=True)
+    OUTPUT_JSON.write_text(
+        json.dumps(event, indent=2, ensure_ascii=False),
+        encoding="utf-8",
     )
 
-    OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
-
-    with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
-        json.dump(event.__dict__, f, indent=2, ensure_ascii=False)
-
-    print("Extraction complete")
-    print(f"Output written to: {OUTPUT_FILE.resolve()}")
+    print("Event extraction successful")
+    print(f"Output written to: {OUTPUT_JSON}")
 
 
 if __name__ == "__main__":

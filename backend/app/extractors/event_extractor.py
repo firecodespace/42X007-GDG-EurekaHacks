@@ -1,4 +1,5 @@
 from app.schemas.event import Event
+from app.models.event import Event
 from app.processors.html_cleaner import clean_html
 from app.processors.content_extractor import extract_main_content
 from app.processors.sectionizer import split_sections
