@@ -1,22 +1,29 @@
-from bs4 import BeautifulSoup
-import re
+from app.schemas.event import Event
+from app.processors.html_cleaner import clean_html
+from app.processors.content_extractor import extract_main_content
+from app.processors.sectionizer import split_sections
+from app.processors.metadata_extractor import extract_title
 
-def extract_event_data(html: str, url: str, source: str):
-    soup = BeautifulSoup(html, "html.parser")
 
-    title = ""
-    h1 = soup.find("h1")
-    if h1:
-        title = h1.get_text(strip=True)
+def extract_event(html: str, url: str, source: str) -> Event:
+    soup = clean_html(html)
 
-    main = soup.find("main") or soup.body
-    text = main.get_text(" ", strip=True) if main else ""
+    raw_text = extract_main_content(soup)
+    sections = split_sections(raw_text)
 
-    text = re.sub(r"\s+", " ", text)
+    title = extract_title(soup)
 
-    return {
-        "title": title,
-        "link": url,
-        "source": source,
-        "raw_description": text
-    }
+    return Event(
+        source=source,
+        url=url,
+        title=title,
+        description=sections.get("overview"),
+        start_date=None,
+        end_date=None,
+        organizer=None,
+        location=None,
+        rules=sections.get("rules"),
+        prizes=sections.get("prizes"),
+        raw_text=raw_text,
+        sections=sections
+    )
