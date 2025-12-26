@@ -3,11 +3,13 @@ from typing import List
 
 from app.discovery.base_discoverer import BaseDiscoverer
 from app.acquisition.fetcher import Fetcher
+from app.acquisition.js_fetcher import JSFetcher
 from app.extraction.extract_event import extract_event
 from app.normalization.build_event import build_event
 from app.normalization.validators import ValidationError
 from app.pipeline.event_filter import is_valid_event
 from app.domain.event import Event
+from app.domain.event_source import EventSource
 
 LOG = logging.getLogger("EventIngestionPipeline")
 
@@ -25,6 +27,7 @@ class EventIngestionPipeline:
         self.discoverer = discoverer
         self.max_events = max_events
         self.fetcher = Fetcher()
+        self.js_fetcher = JSFetcher()
 
     def run(self) -> List[Event]:
         events: list[Event] = []
@@ -32,13 +35,17 @@ class EventIngestionPipeline:
 
         LOG.info("Discovered %d candidate URLs", len(discovered))
 
-        for idx, discovered_url in enumerate(discovered):
+        for discovered_url in discovered:
             if len(events) >= self.max_events:
                 LOG.info("Reached max_events=%d, stopping", self.max_events)
                 break
 
             try:
-                page = self.fetcher.fetch(discovered_url)
+                if discovered_url.source == EventSource.DEVPOST:
+                    page = self.js_fetcher.fetch(discovered_url)
+                else:
+                    page = self.fetcher.fetch(discovered_url)
+
                 if not page:
                     continue
 

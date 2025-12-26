@@ -1,10 +1,8 @@
 import logging
-from datetime import datetime
 from typing import List
-from urllib.parse import urljoin
+from urllib.parse import urlparse
 
-import requests
-from bs4 import BeautifulSoup
+from playwright.sync_api import sync_playwright
 
 from app.discovery.base_discoverer import BaseDiscoverer
 from app.discovery.discovered_url import DiscoveredURL
@@ -16,59 +14,71 @@ LOG = logging.getLogger("DevpostDiscoverer")
 
 class DevpostDiscoverer(BaseDiscoverer):
     """
-    Discovers hackathon URLs from Devpost list pages.
+    Devpost discovery via network interception (XHR/JSON),
+    not DOM scraping.
     """
 
     BASE_URL = "https://devpost.com/hackathons"
 
     def discover(self) -> List[DiscoveredURL]:
-        LOG.info("Discovering Devpost hackathon URLs")
-
-        try:
-            response = requests.get(
-                self.BASE_URL,
-                timeout=15,
-                headers={"User-Agent": "Mozilla/5.0"}
-            )
-            response.raise_for_status()
-
-            LOG.info("Devpost response length: %d", len(response.text))
-
-        except Exception as exc:
-            LOG.error("Devpost discovery failed", exc_info=exc)
-            return []
-
-        soup = BeautifulSoup(response.text, "html.parser")
+        LOG.info("Discovering Devpost hackathon URLs via network interception")
 
         discovered: list[DiscoveredURL] = []
-        seen = set()
+        seen: set[str] = set()
 
-        for a in soup.select("a[href]"):
-            href = a.get("href")
-            if not href:
-                continue
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            context = browser.new_context()
+            page = context.new_page()
 
-            if not href.startswith("http"):
-                continue
+            def handle_response(response):
+                try:
+                    if "api" not in response.url.lower():
+                        return
 
-            if any(x in href for x in ["/login", "/signup", "/settings"]):
-                continue
+                    if not response.headers.get("content-type", "").startswith("application/json"):
+                        return
 
-            if ".devpost.com" not in href:
-                continue
+                    data = response.json()
 
-            if href in seen:
-                continue
+                    # Devpost APIs return lists of challenges / hackathons
+                    if isinstance(data, dict):
+                        items = data.get("challenges") or data.get("hackathons") or []
+                    elif isinstance(data, list):
+                        items = data
+                    else:
+                        return
 
-            seen.add(href)
+                    for item in items:
+                        url = item.get("url") or item.get("challenge_url")
+                        if not url:
+                            continue
 
-            discovered.append(
-                DiscoveredURL(
-                    url=href,
-                    source=EventSource.DEVPOST,
-                    discovered_at=utc_now()
-                )
-            )
+                        parsed = urlparse(url)
+                        if not parsed.netloc.endswith(".devpost.com"):
+                            continue
 
-        LOG.info("Discovered %d Devpost URLs", len(discovered))
+                        if url in seen:
+                            continue
+
+                        seen.add(url)
+                        discovered.append(
+                            DiscoveredURL(
+                                url=url,
+                                source=EventSource.DEVPOST,
+                                discovered_at=utc_now(),
+                            )
+                        )
+
+                except Exception:
+                    pass  # silent on purpose; this is best-effort
+
+            page.on("response", handle_response)
+
+            page.goto(self.BASE_URL, timeout=30000)
+            page.wait_for_timeout(8000)
+
+            browser.close()
+
+        LOG.info("Discovered %d Devpost hackathon URLs", len(discovered))
         return discovered

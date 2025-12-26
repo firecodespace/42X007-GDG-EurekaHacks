@@ -1,29 +1,43 @@
 from app.acquisition.fetched_page import FetchedPage
-from app.extraction.raw_event import RawEvent
-from app.extraction.title import extract_title
-from app.extraction.description import extract_description
-from app.extraction.deadline import extract_deadline_text
-from app.extraction.location import extract_location_text
+from app.extractors.title_extractor import extract_title
+from app.extractors.description_extractor import extract_description
+from app.extractors.date_extractor import extract_deadline
+from app.extractors.location_extractor import extract_location
+from app.domain.raw_event import RawEvent
 
 
 def extract_event(page: FetchedPage) -> RawEvent:
     """
-    Deterministically extracts raw event data from HTML snapshot.
+    Metadata-first extraction.
+    API metadata → fallback to HTML.
     """
 
-    title = extract_title(page.html)
-    description = extract_description(page.html)
+    meta = page.metadata or {}
 
-    combined_text = f"{title}\n{description}"
+    title = meta.get("title") or meta.get("name") or extract_title(page.html)
 
-    deadline_text = extract_deadline_text(combined_text)
-    location_text = extract_location_text(combined_text)
+    description = (
+        meta.get("description")
+        or meta.get("overview")
+        or extract_description(page.html)
+    )
+
+    deadline_text = (
+        meta.get("submission_deadline")
+        or meta.get("deadline")
+        or extract_deadline(description)
+    )
+
+    location_text = (
+        meta.get("location")
+        or extract_location(description)
+    )
 
     return RawEvent(
-        title=title,
-        description=description,
-        deadline_text=deadline_text or None,
-        location_text=location_text or None,
+        title=title or "",
+        description=description or "",
+        deadline_text=deadline_text,
+        location_text=location_text,
         source=page.source,
         url=page.url,
     )
