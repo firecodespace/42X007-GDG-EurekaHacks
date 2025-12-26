@@ -31,6 +31,9 @@ class DevpostDiscoverer(BaseDiscoverer):
                 headers={"User-Agent": "Mozilla/5.0"}
             )
             response.raise_for_status()
+
+            LOG.info("Devpost response length: %d", len(response.text))
+
         except Exception as exc:
             LOG.error("Devpost discovery failed", exc_info=exc)
             return []
@@ -45,19 +48,23 @@ class DevpostDiscoverer(BaseDiscoverer):
             if not href:
                 continue
 
-            if "/hackathons/" not in href:
+            if not href.startswith("http"):
                 continue
 
-            full_url = urljoin(self.BASE_URL, href)
-
-            if full_url in seen:
+            if any(x in href for x in ["/login", "/signup", "/settings"]):
                 continue
 
-            seen.add(full_url)
+            if ".devpost.com" not in href:
+                continue
+
+            if href in seen:
+                continue
+
+            seen.add(href)
 
             discovered.append(
                 DiscoveredURL(
-                    url=full_url,
+                    url=href,
                     source=EventSource.DEVPOST,
                     discovered_at=utc_now()
                 )
