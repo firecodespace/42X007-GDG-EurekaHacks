@@ -10,6 +10,7 @@ export default function OnboardingNamePage() {
     const router = useRouter();
     const { draft, setDraft } = useOnboarding();
     const [busy, setBusy] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     const canContinue = draft.name.trim().length >= 2;
 
@@ -40,28 +41,47 @@ export default function OnboardingNamePage() {
                         or continue with your Google account
                     </div>
 
+                    {error && (
+                        <p className="mt-4 text-sm sm:text-base text-red-300">
+                            {error}
+                        </p>
+                    )}
+
                     <button
                         type="button"
                         disabled={busy}
                         onClick={async () => {
+                            if (busy) return;
+
                             setBusy(true);
+                            setError(null);
+
                             try {
                                 const res = await signInWithGoogle();
+
                                 setDraft((p) => ({
                                     ...p,
                                     googleConnected: true,
-                                    name: res.name ?? p.name,
-                                    email: res.email ?? p.email,
-                                    phone: res.phone ?? p.phone,
+                                    // Only fill if user hasn’t typed it
+                                    name: p.name.trim() ? p.name : (res.name ?? ""),
+                                    email: p.email.trim() ? p.email : (res.email ?? ""),
+                                    phone: p.phone.trim() ? p.phone : (res.phone ?? ""),
                                 }));
+
                                 router.push("/onboarding/email");
+                            } catch (e: any) {
+                                const msg =
+                                    typeof e?.message === "string"
+                                        ? e.message
+                                        : "Google sign-in failed. Please try again.";
+                                setError(msg);
                             } finally {
                                 setBusy(false);
                             }
                         }}
                         className="cursor-pointer mt-5 sm:mt-6 inline-flex h-11 sm:h-12 w-full max-w-md items-center justify-center rounded-xl bg-white px-6 text-sm sm:text-base font-medium text-black disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                        Continue with Google
+                        {busy ? "Connecting..." : "Continue with Google"}
                     </button>
                 </div>
             </div>
