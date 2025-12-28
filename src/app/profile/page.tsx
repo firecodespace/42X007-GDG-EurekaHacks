@@ -1,38 +1,61 @@
-export default function ProfilePage() {
+"use client";
+
+import EditableField from "./_components/EditableField";
+import SectionHeader from "./_components/SectionHeader";
+import { useState } from "react";
+
+export default function ProfileAccountPage() {
+    // Temporary local state; next step is to hydrate from Firestore.
+    const [profile, setProfile] = useState({
+        name: "—",
+        email: "—",
+        phone: "—",
+        university: "—",
+        course: "—",
+        username: "—",
+    });
+
     return (
-        <main className="min-h-dvh px-10 py-16 text-white">
-            <div className="max-w-3xl">
-                <h1 className="text-4xl font-semibold">Your Profile</h1>
-                <p className="mt-3 text-white/70">
-                    Profile will be connect to the final UI soon
-                </p>
+        <div>
+            <SectionHeader
+                title="Account"
+                subtitle="Manage your personal details. Changes are saved instantly."
+            />
 
-                <div className="mt-10 rounded-2xl border border-white/15 bg-black/20 backdrop-blur-md p-6">
-                    <div className="text-white/60 text-sm">Sample profile card</div>
-                    <div className="mt-4 space-y-2">
-                        <Row k="Name" v="(from onboarding)" />
-                        <Row k="Email" v="(from onboarding)" />
-                        <Row k="University" v="(from onboarding)" />
-                        <Row k="Course" v="(from onboarding)" />
-                    </div>
-
-                    <button
-                        type="button"
-                        className="mt-6 rounded-xl border border-white/20 px-5 py-3 text-white"
-                    >
-                        Edit
-                    </button>
+            <div className="rounded-2xl border border-white/10 bg-white/5">
+                <div className="px-6">
+                    <EditableField
+                        label="Name"
+                        value={profile.name}
+                        onSave={async (next) => setProfile((p) => ({ ...p, name: next || "—" }))}
+                    />
+                    <EditableField
+                        label="Email"
+                        value={profile.email}
+                        onSave={async (next) => setProfile((p) => ({ ...p, email: next || "—" }))}
+                    />
+                    <EditableField
+                        label="Phone"
+                        value={profile.phone}
+                        onSave={async (next) => setProfile((p) => ({ ...p, phone: next || "—" }))}
+                    />
+                    <EditableField
+                        label="University"
+                        value={profile.university}
+                        onSave={async (next) => setProfile((p) => ({ ...p, university: next || "—" }))}
+                    />
+                    <EditableField
+                        label="Course"
+                        value={profile.course}
+                        onSave={async (next) => setProfile((p) => ({ ...p, course: next || "—" }))}
+                    />
+                    <EditableField
+                        label="Username"
+                        value={profile.username}
+                        onSave={async (next) => setProfile((p) => ({ ...p, username: next || "—" }))}
+                    />
                 </div>
             </div>
-        </main>
-    );
-}
-
-function Row({ k, v }: { k: string; v: string }) {
-    return (
-        <div className="flex items-center justify-between gap-6">
-            <div className="text-white/70">{k}</div>
-            <div className="text-white">{v}</div>
         </div>
     );
 }
