@@ -4,7 +4,7 @@ export default function ProfilePage() {
             <div className="max-w-3xl">
                 <h1 className="text-4xl font-semibold">Your Profile</h1>
                 <p className="mt-3 text-white/70">
-                    Profile editing will be connected to Firebase after the backend team finishes auth + storage.
+                    Profile will be connect to the final UI soon
                 </p>
 
                 <div className="mt-10 rounded-2xl border border-white/15 bg-black/20 backdrop-blur-md p-6">
