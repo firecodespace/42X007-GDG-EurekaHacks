@@ -1,15 +1,16 @@
 from app.utils.logger import setup_logging
 from app.discovery.devpost_discoverer import DevpostDiscoverer
+from app.discovery.unstop_discoverer import UnstopDiscoverer
 from app.pipeline.event_ingestion import EventIngestionPipeline
 
 
 def main():
     setup_logging()
 
-    discoverer = DevpostDiscoverer()
+    discoverer = UnstopDiscoverer()
     pipeline = EventIngestionPipeline(
         discoverer=discoverer,
-        max_events=50,   # change to 100–200 when confident
+        max_events=20,   # change to 100–200 when confident
     )
 
     events = pipeline.run()

@@ -4,6 +4,7 @@ from typing import List
 from app.discovery.base_discoverer import BaseDiscoverer
 from app.acquisition.fetcher import Fetcher
 from app.acquisition.js_fetcher import JSFetcher
+from app.acquisition.unstop_fetcher import UnstopFetcher
 from app.extraction.extract_event import extract_event
 from app.normalization.build_event import build_event
 from app.normalization.validators import ValidationError
@@ -26,8 +27,11 @@ class EventIngestionPipeline:
     ):
         self.discoverer = discoverer
         self.max_events = max_events
-        self.fetcher = Fetcher()
-        self.js_fetcher = JSFetcher()
+
+        # Fetchers (source-aware)
+        self.fetcher = Fetcher()               # generic / static
+        self.js_fetcher = JSFetcher()           # Devpost
+        self.unstop_fetcher = UnstopFetcher()   # Unstop (API)
 
     def run(self) -> List[Event]:
         events: list[Event] = []
@@ -41,10 +45,16 @@ class EventIngestionPipeline:
                 break
 
             try:
-                if discovered_url.source == EventSource.DEVPOST:
+                # -------- SOURCE ROUTING (CRITICAL) --------
+                if discovered_url.source == EventSource.UNSTOP:
+                    page = self.unstop_fetcher.fetch(discovered_url)
+
+                elif discovered_url.source == EventSource.DEVPOST:
                     page = self.js_fetcher.fetch(discovered_url)
+
                 else:
                     page = self.fetcher.fetch(discovered_url)
+                # ------------------------------------------
 
                 if not page:
                     continue
