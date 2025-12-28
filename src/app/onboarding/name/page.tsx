@@ -5,6 +5,8 @@ import { useState } from "react";
 import UnderlineStep from "@/app/onboarding/_components/UnderlineStep";
 import { useOnboarding } from "@/lib/onboarding/store";
 import { signInWithGoogle } from "@/lib/auth/authAdapter";
+import { auth } from "@/lib/auth/firebaseClient";
+import { getUserProfile, isProfileComplete } from "@/lib/profile/profileStore";
 
 export default function OnboardingNamePage() {
     const router = useRouter();
@@ -42,9 +44,7 @@ export default function OnboardingNamePage() {
                     </div>
 
                     {error && (
-                        <p className="mt-4 text-sm sm:text-base text-red-300">
-                            {error}
-                        </p>
+                        <p className="mt-4 text-sm sm:text-base text-red-300">{error}</p>
                     )}
 
                     <button
@@ -57,24 +57,46 @@ export default function OnboardingNamePage() {
                             setError(null);
 
                             try {
-                                const res = await signInWithGoogle();
+                                await signInWithGoogle();
 
+                                // Force token refresh so Firestore rules see auth immediately [web:143]
+                                const u = auth.currentUser;
+                                if (!u) throw new Error("Auth user missing after Google sign-in");
+                                await u.getIdToken(true);
+
+                                // IMPORTANT: use auth.currentUser.uid as the doc id
+                                const uid = u.uid;
+                                const profile = await getUserProfile(uid);
+
+                                console.log("Auth UID:", uid);
+                                console.log("Firestore profile:", profile);
+                                console.log("isComplete:", profile ? isProfileComplete(profile) : false);
+
+                                if (profile && isProfileComplete(profile)) {
+                                    router.replace("/profile");
+                                    return;
+                                }
+
+                                // hydrate draft for incomplete users
                                 setDraft((p) => ({
                                     ...p,
                                     googleConnected: true,
-                                    // Only fill if user hasn’t typed it
-                                    name: p.name.trim() ? p.name : (res.name ?? ""),
-                                    email: p.email.trim() ? p.email : (res.email ?? ""),
-                                    phone: p.phone.trim() ? p.phone : (res.phone ?? ""),
+                                    name: p.name.trim() ? p.name : (profile?.name ?? u.displayName ?? ""),
+                                    email: p.email.trim() ? p.email : (profile?.email ?? u.email ?? ""),
+                                    phone: p.phone.trim() ? p.phone : (profile?.phone ?? u.phoneNumber ?? ""),
+                                    university: profile?.university ?? p.university,
+                                    course: profile?.course ?? p.course,
+                                    username: profile?.username ?? p.username,
                                 }));
 
                                 router.push("/onboarding/email");
                             } catch (e: any) {
-                                const msg =
+                                console.error(e);
+                                setError(
                                     typeof e?.message === "string"
                                         ? e.message
-                                        : "Google sign-in failed. Please try again.";
-                                setError(msg);
+                                        : "Google sign-in failed. Please try again."
+                                );
                             } finally {
                                 setBusy(false);
                             }

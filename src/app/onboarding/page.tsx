@@ -1,84 +1,60 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { ArrowRight } from "lucide-react";
 import { useState } from "react";
-import { useOnboarding } from "@/lib/onboarding/store";
-import { signInWithGoogle } from "@/lib/auth/authAdapter";
 
-export default function OnboardingNamePage() {
+export default function OnboardingIntroPage() {
     const router = useRouter();
-    const { draft, setDraft } = useOnboarding();
     const [busy, setBusy] = useState(false);
 
-    const canContinue = draft.name.trim().length >= 2;
-
-    function next() {
-        if (!canContinue) return;
-        router.push("/onboarding/email");
-    }
-
     return (
-        <main className="min-h-dvh px-10 py-16 text-white">
+        <main className="min-h-dvh px-5 sm:px-8 lg:px-10 py-10 sm:py-14 lg:py-16 text-white">
             <div className="max-w-5xl">
-                <h1 className="text-6xl font-semibold tracking-tight">Welcome to HackFlix</h1>
-                <p className="mt-4 text-2xl text-white/70">Setup your profile, answer the questions.</p>
+                <h1 className="text-4xl sm:text-5xl lg:text-6xl font-semibold tracking-tight">
+                    Let’s set up your account
+                </h1>
+                <p className="mt-3 sm:mt-4 text-lg sm:text-xl lg:text-2xl text-white/70">
+                    This takes under a minute. You’ll add your basics, then you’re in.
+                </p>
 
-                <div className="mt-14">
-                    <label className="block text-white/90 text-3xl">What should we call you?</label>
-
-                    <div className="mt-10 flex items-end gap-4">
-                        <input
-                            autoFocus
-                            value={draft.name}
-                            onChange={(e) => setDraft((p) => ({ ...p, name: e.target.value }))}
-                            onKeyDown={(e) => {
-                                if (e.key !== "Enter") return;
-                                e.preventDefault();
-                                next();
-                            }}
-                            className="w-full bg-transparent text-white text-4xl outline-none"
-                        />
-
-                        <button
-                            type="button"
-                            aria-label="Continue"
-                            onClick={next}
-                            disabled={!canContinue || busy}
-                            className="cursor-pointer flex h-12 w-12 items-center justify-center rounded-full border border-white/25 text-white disabled:cursor-not-allowed disabled:opacity-40"
-                        >
-                            <ArrowRight className="h-5 w-5" />
-                        </button>
+                <div className="mt-10 sm:mt-12 rounded-2xl border border-white/10 bg-white/5 p-5 sm:p-7">
+                    <div className="text-base sm:text-lg text-white/80">
+                        What you’ll do:
                     </div>
+                    <ul className="mt-4 space-y-2 text-sm sm:text-base text-white/70">
+                        <li>• Choose a name & confirm email.</li>
+                        <li>• Add university, course, and a username.</li>
+                        <li>• Finish and land on your profile.</li>
+                    </ul>
 
-                    <div className="mt-6 h-px w-full bg-white/30" />
+                    <div className="mt-6 text-sm sm:text-base text-white/60">
+                        Tip: If you’ve already completed onboarding before, Google sign-in will skip steps and take you straight to profile.
+                    </div>
                 </div>
 
-                <div className="mt-14 text-2xl text-white/70">or continue with your Google account</div>
+                <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => {
+                            if (busy) return;
+                            setBusy(true);
+                            router.push("/onboarding/name");
+                        }}
+                        className="cursor-pointer inline-flex h-11 sm:h-12 w-full sm:w-auto items-center justify-center rounded-xl bg-white px-6 text-sm sm:text-base font-medium text-black disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                        {busy ? "Starting..." : "Continue"}
+                    </button>
 
-                <button
-                    type="button"
-                    disabled={busy}
-                    onClick={async () => {
-                        setBusy(true);
-                        try {
-                            const res = await signInWithGoogle();
-                            setDraft((p) => ({
-                                ...p,
-                                googleConnected: true,
-                                name: res.name ?? p.name,
-                                email: res.email ?? p.email,
-                                phone: res.phone ?? p.phone,
-                            }));
-                            router.push("/onboarding/email");
-                        } finally {
-                            setBusy(false);
-                        }
-                    }}
-                    className="cursor-pointer mt-6 flex h-12 w-full max-w-md items-center justify-center rounded-xl bg-white px-6 text-base font-medium text-black disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                    Continue with Google
-                </button>
+                    <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => router.push("/")}
+                        className="cursor-pointer inline-flex h-11 sm:h-12 w-full sm:w-auto items-center justify-center rounded-xl border border-white/15 bg-transparent px-6 text-sm sm:text-base font-medium text-white/90 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                        Back
+                    </button>
+                </div>
             </div>
         </main>
     );
