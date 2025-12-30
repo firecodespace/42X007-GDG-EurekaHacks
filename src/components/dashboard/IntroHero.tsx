@@ -16,7 +16,7 @@ export function IntroHero({
     return (
         <section className="w-full">
             {/* Adds “centered” whitespace around hero */}
-            <div className="mx-auto w-full max-w-6xl px-2 py-12 sm:py-16 lg:py-20">
+            <div className="mx-auto w-full max-w-6xl px-2 py-25 sm:py-25 lg:py-35">
                 <div className="text-center">
                     <h2 className="mx-auto max-w-6xl text-balance text-3xl font-semibold leading-tight text-white sm:text-5xl sm:leading-tight">
                         {title}
