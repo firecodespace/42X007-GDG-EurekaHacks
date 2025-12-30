@@ -24,7 +24,7 @@ export const mockEvents: Event[] = [
             "Build, ship, and demo in 24 hours with mentors and prizes for top teams.",
         location: "delhi",
         aiFitScore: 76,
-        organizers: [{ name: "Xarch Labs" }],
+        organizers: [{ name: "xyz company" }],
         memberRangeLabel: "2-5 members",
         cta: {
             primaryLabel: "Register",
@@ -40,7 +40,7 @@ export const mockEvents: Event[] = [
             "Build, ship, and demo in 24 hours with mentors and prizes for top teams.",
         location: "delhi",
         aiFitScore: 76,
-        organizers: [{ name: "Xarch Labs" }],
+        organizers: [{ name: "xyz company" }],
         memberRangeLabel: "2-5 members",
         cta: {
             primaryLabel: "Register",
@@ -56,7 +56,7 @@ export const mockEvents: Event[] = [
             "Build, ship, and demo in 24 hours with mentors and prizes for top teams.",
         location: "delhi",
         aiFitScore: 76,
-        organizers: [{ name: "Xarch Labs" }],
+        organizers: [{ name: "xyz company" }],
         memberRangeLabel: "2-5 members",
         cta: {
             primaryLabel: "Register",
@@ -72,7 +72,7 @@ export const mockEvents: Event[] = [
             "Build, ship, and demo in 24 hours with mentors and prizes for top teams.",
         location: "delhi",
         aiFitScore: 76,
-        organizers: [{ name: "Xarch Labs" }],
+        organizers: [{ name: "xyz company" }],
         memberRangeLabel: "2-5 members",
         cta: {
             primaryLabel: "Register",
@@ -88,7 +88,7 @@ export const mockEvents: Event[] = [
             "Build, ship, and demo in 24 hours with mentors and prizes for top teams.",
         location: "delhi",
         aiFitScore: 76,
-        organizers: [{ name: "Xarch Labs" }],
+        organizers: [{ name: "xyz company" }],
         memberRangeLabel: "2-5 members",
         cta: {
             primaryLabel: "Register",
@@ -104,7 +104,7 @@ export const mockEvents: Event[] = [
             "Build, ship, and demo in 24 hours with mentors and prizes for top teams.",
         location: "delhi",
         aiFitScore: 76,
-        organizers: [{ name: "Xarch Labs" }],
+        organizers: [{ name: "xyz company" }],
         memberRangeLabel: "2-5 members",
         cta: {
             primaryLabel: "Register",
