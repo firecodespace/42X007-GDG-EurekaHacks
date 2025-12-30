@@ -1,1 +1,1 @@
-export const CONTENT_INSET_CLASS = "px-[56px]";
+export const CONTENT_INSET_CLASS = "px-[24px] lg:px-[56px]";
