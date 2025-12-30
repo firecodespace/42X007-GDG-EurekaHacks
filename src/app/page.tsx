@@ -10,7 +10,7 @@ export default function HomePage() {
 
         <IntroHero
           title="A Personalized AI System That Learns Your Skills and Maps You to the Right Opportunities"
-          subtitle="Tell HackFlix what you’re good at, what you want to build, and the time you can commit—then get events and hackathons ranked by fit score, team size, and organizer quality."
+          subtitle="Tell HackFlix what you are good at, what you want to build, and what you have already built, then get events and hackathons recommendations ranked by fit score, team size, and organizer quality."
           primaryCta={{ label: "Build my profile", href: "/onboarding" }}
           secondaryCta={{ label: "See recommendations", href: "/dashboard" }}
         />
