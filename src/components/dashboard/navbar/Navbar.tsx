@@ -5,6 +5,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { NAV_LINKS } from "./nav-links";
 import { Button } from "@/components/ui/Button";
 import { CONTENT_INSET_CLASS } from "@/components/ui/layout";
+import { useAuthUser } from "@/lib/auth/useAuthUser";
 
 function CloseIcon() {
     return (
@@ -19,6 +20,8 @@ export function Navbar() {
     const dialogId = useId();
     const panelRef = useRef<HTMLDivElement | null>(null);
 
+    const { signedIn, loading } = useAuthUser();
+
     useEffect(() => {
         function onKeyDown(e: KeyboardEvent) {
             if (e.key === "Escape") setOpen(false);
@@ -31,6 +34,12 @@ export function Navbar() {
         if (open) panelRef.current?.focus();
     }, [open]);
 
+    const ctaHref = signedIn ? "/profile" : "/signup";
+    const ctaLabel = signedIn ? "your profile" : "sign up";
+
+    const mobileCtaHref = signedIn ? "/profile" : "/onboarding";
+    const mobileCtaLabel = signedIn ? "your profile" : "sign up";
+
     return (
         <>
             <header className="sticky top-0 z-40">
@@ -38,8 +47,8 @@ export function Navbar() {
                     <div
                         className={[
                             "mx-auto flex w-full items-center justify-between",
-                            CONTENT_INSET_CLASS, // 56px L/R alignment with rails
-                            "py-3", // smaller height
+                            CONTENT_INSET_CLASS,
+                            "py-3",
                         ].join(" ")}
                     >
                         <Link href="/" className="text-3xl font-semibold tracking-tight text-white">
@@ -60,9 +69,15 @@ export function Navbar() {
                                 ))}
                             </div>
 
-                            <Button href="/signup" className="min-w-[160px]">
-                                sign up
-                            </Button>
+                            {loading ? (
+                                <Button href={ctaHref} className="min-w-[160px]" variant="ghost">
+                                    loading...
+                                </Button>
+                            ) : (
+                                <Button href={ctaHref} className="min-w-[160px]">
+                                    {ctaLabel}
+                                </Button>
+                            )}
                         </div>
 
                         {/* Mobile hamburger */}
@@ -85,7 +100,6 @@ export function Navbar() {
             {/* Mobile overlay + drawer */}
             {open ? (
                 <div id={dialogId} role="dialog" aria-modal="true" className="fixed inset-0 z-50 lg:hidden">
-                    {/* Optional dark wash to match your theme */}
                     <div className="absolute inset-0 z-0 bg-[#000D2E]/35" />
 
                     {/* Click outside to close */}
@@ -120,7 +134,6 @@ export function Navbar() {
                         </div>
 
                         <nav className="mt-8 flex flex-col gap-5">
-                            {/* Optional extra top item */}
                             <Link
                                 href="#"
                                 onClick={() => setOpen(false)}
@@ -141,10 +154,16 @@ export function Navbar() {
                             ))}
                         </nav>
 
-                        <div className="mt-10">
-                            <Button href="/onboarding" className="w-full">
-                                sign up
-                            </Button>
+                        <div className="mt-10" onClick={() => setOpen(false)}>
+                            {loading ? (
+                                <Button href={mobileCtaHref} className="w-full" variant="ghost">
+                                    loading...
+                                </Button>
+                            ) : (
+                                <Button href={mobileCtaHref} className="w-full">
+                                    {mobileCtaLabel}
+                                </Button>
+                            )}
                         </div>
                     </div>
                 </div>
