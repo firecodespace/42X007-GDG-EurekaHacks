@@ -136,16 +136,14 @@ export function EventCard({ event }: { event: Event }) {
                 </div>
 
                 {/* Bottom CTAs */}
-                <div className="mt-auto flex items-end justify-between gap-6 pt-8">
+                <div className="mt-auto flex items-end justify-end gap-8 pt-8">
                     {event.cta.secondaryLabel && event.cta.secondaryHref ? (
                         <Button href={event.cta.secondaryHref} variant="ghost" className="h-[45px]">
                             {event.cta.secondaryLabel}
                         </Button>
-                    ) : (
-                        <span />
-                    )}
+                    ) : null}
 
-                    <Button href={event.cta.href} className="min-w-[150px]">
+                    <Button href={event.cta.href} className="min-w-[180px]">
                         {event.cta.primaryLabel}
                     </Button>
                 </div>
