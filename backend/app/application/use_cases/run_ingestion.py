@@ -15,15 +15,12 @@ class RunResult:
 
 def run_ingestion_once(max_events: int = 20) -> RunResult:
     run = create_run(source="unstop", max_events=max_events)
-
     try:
         discoverer = UnstopDiscoverer()
         pipeline = EventIngestionPipeline(discoverer=discoverer, max_events=max_events)
         events = pipeline.run()
-
         finish_run(run.run_id, events_count=len(events), error=None)
         return RunResult(run_id=run.run_id, events_count=len(events), error=None)
-
     except Exception as exc:
         finish_run(run.run_id, events_count=0, error=str(exc))
-        return RunResult(run_id=run.run_id, events_count=0, error=str(exc))
+        raise  # IMPORTANT: show full traceback in terminal

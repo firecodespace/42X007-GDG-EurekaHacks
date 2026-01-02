@@ -1,65 +1,64 @@
 import logging
-from typing import List
-import requests
+from typing import List, Set
+from urllib.parse import urljoin
+
+from playwright.sync_api import sync_playwright
 
 from app.domain.entities.discovered_url import DiscoveredURL
-from app.domain.event_source import EventSource
+from app.domain.value_objects.event_source import EventSource
 from app.shared.utils.time import utc_now
 
 LOG = logging.getLogger("UnstopDiscoverer")
 
 
 class UnstopDiscoverer:
-    """
-    Discovers Unstop hackathons via internal search API.
-    """
+    LISTING_URL = "https://unstop.com/hackathons"
 
-    SEARCH_API = "https://unstop.com/api/public/search/opportunities"
+    def __init__(self, max_scrolls: int = 10):
+        self.max_scrolls = max_scrolls
 
     def discover(self) -> List[DiscoveredURL]:
-        LOG.info("Discovering Unstop hackathons via search API")
+        found: Set[str] = set()
 
-        payload = {
-            "opportunityType": ["hackathon"],
-            "page": 1,
-            "perPage": 50,
-            "searchTerm": "",
-            "filters": {},
-        }
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=False, slow_mo=150)
+            page = browser.new_page()
 
-        try:
-            resp = requests.post(
-                self.SEARCH_API,
-                json=payload,
-                timeout=20,
-                headers={
-                    "User-Agent": "Mozilla/5.0",
-                    "Accept": "application/json",
-                },
-            )
-            resp.raise_for_status()
-            data = resp.json()
-        except Exception as exc:
-            LOG.error("Unstop discovery failed", exc_info=exc)
-            return []
+            page.on("console", lambda msg: LOG.info("BROWSER_CONSOLE: %s", msg.text))
 
-        items = data.get("data", {}).get("data", [])
-        discovered: list[DiscoveredURL] = []
+            page.goto(self.LISTING_URL, wait_until="domcontentloaded", timeout=60000)
+            page.wait_for_timeout(15000)
 
-        for item in items:
-            slug = item.get("seo_url")
-            if not slug:
-                continue
+            LOG.info("At URL=%s title=%s", page.url, page.title())
 
-            url = f"https://unstop.com/{slug}"
+            # Try to close cookie/consent if it exists (non-fatal)
+            for sel in ["button:has-text('Accept')", "button:has-text('I Agree')", "button:has-text('Got it')"]:
+                try:
+                    page.locator(sel).first.click(timeout=1500)
+                    break
+                except Exception:
+                    pass
 
-            discovered.append(
-                DiscoveredURL(
-                    url=url,
-                    source=EventSource.UNSTOP,
-                    discovered_at=utc_now(),
-                )
-            )
+            # Scroll
+            for _ in range(self.max_scrolls):
+                page.mouse.wheel(0, 7000)
+                page.wait_for_timeout(1200)
 
-        LOG.info("Discovered %d Unstop URLs", len(discovered))
-        return discovered
+            anchors = page.locator('a[href*="/hackathons/"]')
+            count = anchors.count()
+            LOG.info("Unstop rendered hackathon anchors=%s", count)
+
+            if count == 0:
+                os.makedirs("debug", exist_ok=True)
+                page.screenshot(path="debug/unstop_zero.png", full_page=True)
+                html = page.content()
+                with open("debug/unstop_zero.html", "w", encoding="utf-8") as f:
+                    f.write(html)
+                # Keep it open so you can see what page it is
+                page.wait_for_timeout(15000)
+
+            browser.close()
+
+        out = [DiscoveredURL(url=u, source=EventSource.UNSTOP, discovered_at=utc_now()) for u in sorted(found)]
+        LOG.info("Discovered %d Unstop URLs via Playwright (headed)", len(out))
+        return out
