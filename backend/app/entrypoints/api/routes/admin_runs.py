@@ -28,13 +28,17 @@ def run_once():
             text=True,
         )
 
+        stdout = (proc.stdout or "").strip()
+        stderr = (proc.stderr or "").strip()
+
         if proc.returncode != 0:
-            _last["last_error"] = (proc.stderr or proc.stdout or "").strip()
+            _last["last_error"] = stderr or stdout
             _last["last_events_count"] = 0
             return {"queued": False, "state": _last}
 
-        # If run_once.py prints something, return it for debugging
-        return {"queued": False, "state": _last, "output": (proc.stdout or "").strip()}
+        # show logs even on success
+        _last["last_error"] = stderr # keep warnings here if any
+        return {"queued": False, "state": _last, "output": stdout}
     finally:
         _running = False
         _last["running"] = False

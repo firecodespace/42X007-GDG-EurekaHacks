@@ -1,109 +1,57 @@
-import logging
-from typing import Optional, Dict, Any
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Optional
 
-from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeout
+from playwright.sync_api import sync_playwright, TimeoutError as PWTimeoutError
 
-from app.acquisition.fetched_page import FetchedPage
-from app.discovery.discovered_url import DiscoveredURL
-from app.utils.time import utc_now
-
-LOG = logging.getLogger("JSFetcher")
+from app.domain.entities.discovered_url import DiscoveredURL
+from app.domain.entities.fetched_page import FetchedPage
 
 
-class JSFetcher:
-    """
-    Fetches fully rendered HTML + API metadata for JS-heavy platforms (Devpost).
-    """
+DEBUG_DIR = Path(__file__).resolve().parents[2] / "dev" / "debug"
+
+
+class PlaywrightFetcher:
+    def __init__(self, headless: bool = True):
+        self.headless = headless
 
     def fetch(self, discovered: DiscoveredURL) -> Optional[FetchedPage]:
-        event_metadata: Dict[str, Any] = {}
-
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
-            context = browser.new_context(
-                storage_state="storage_state.json",
-                user_agent=(
-                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) "
-                    "Chrome/120.0.0.0 Safari/537.36"
-                ),
-            )
+            browser = p.chromium.launch(headless=self.headless)
+            context = browser.new_context(ignore_https_errors=True)
             page = context.new_page()
 
-            def extract_challenge(obj):
-                """
-                Recursively search for Devpost 'challenge' object in GraphQL response.
-                """
-                if isinstance(obj, dict):
-                    if "challenge" in obj and isinstance(obj["challenge"], dict):
-                        return obj["challenge"]
+            page.goto(discovered.url, wait_until="domcontentloaded", timeout=60000)
 
-                    for value in obj.values():
-                        result = extract_challenge(value)
-                        if result:
-                            return result
-
-                elif isinstance(obj, list):
-                    for item in obj:
-                        result = extract_challenge(item)
-                        if result:
-                            return result
-
-                return None
-
-
-            def handle_response(response):
-                try:
-                    ct = response.headers.get("content-type", "")
-                    if "application/json" not in ct:
-                        return
-
-                    url = response.url.lower()
-                    if "graphql" not in url:
-                        return
-
-                    data = response.json()
-                    challenge = extract_challenge(data)
-
-                    if challenge:
-                        event_metadata.update(challenge)
-
-                except Exception:
-                    pass
-
-
-            page.on("response", handle_response)
-
+            # Wait for an H1 (event title) to appear
             try:
-                page.goto(discovered.url, timeout=60000)
-                page.wait_for_load_state("networkidle", timeout=60000)
-                page.evaluate("window.scrollTo(0, document.body.scrollHeight);")
-                page.wait_for_timeout(3000)
+                page.wait_for_selector("h1", timeout=20000)
+            except PWTimeoutError:
+                pass
 
-                page.evaluate("window.scrollTo(0, 0);")
-                page.wait_for_timeout(3000)
+            # Small extra wait for JS hydration
+            page.wait_for_timeout(4000)
 
-                page.wait_for_load_state("networkidle", timeout=60000)
+            title = page.title()
+            html = page.content()
 
-                html = page.content()
+            # If title is still the generic Unstop tagline, dump debug artifacts
+            if title.startswith("Unstop - Competitions"):
+                DEBUG_DIR.mkdir(parents=True, exist_ok=True)
+                page.screenshot(path=str(DEBUG_DIR / "detail_bad.png"), full_page=True)
+                (DEBUG_DIR / "detail_bad.html").write_text(html, encoding="utf-8")
 
-                LOG.warning(
-                    "Devpost metadata keys for %s: %s",
-                    discovered.url,
-                    list(event_metadata.keys())[:10],
-                )
+            context.close()
+            browser.close()
 
-                return FetchedPage(
-                    url=discovered.url,
-                    source=discovered.source,
-                    html=html,
-                    fetched_at=utc_now(),
-                    metadata=event_metadata or None,
-                )
-
-            except PlaywrightTimeout:
-                LOG.error("JS fetch timeout for %s", discovered.url)
-                return None
-
-            finally:
-                browser.close()
+        return FetchedPage(
+            url=discovered.url,
+            source=discovered.source,
+            html=html,
+            fetched_at=datetime.now(timezone.utc),
+            metadata={
+                "fetcher": "playwright",
+                "headless": self.headless,
+                "page_title": title,
+            },
+        )
