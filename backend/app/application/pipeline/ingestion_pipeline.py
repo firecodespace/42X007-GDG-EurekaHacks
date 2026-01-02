@@ -1,7 +1,6 @@
 import logging
 from typing import List
 
-from app.discovery.base_discoverer import BaseDiscoverer
 from app.acquisition.fetcher import Fetcher
 from app.acquisition.js_fetcher import JSFetcher
 from app.acquisition.unstop_fetcher import UnstopFetcher
