@@ -1,1 +1,0 @@
-from app.discovery.devpost_discoverer import DevpostDiscoverer

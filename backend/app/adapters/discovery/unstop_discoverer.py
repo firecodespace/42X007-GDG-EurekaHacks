@@ -2,7 +2,6 @@ import logging
 from typing import List
 import requests
 
-from app.discovery.base_discoverer import BaseDiscoverer
 from app.discovery.discovered_url import DiscoveredURL
 from app.domain.event_source import EventSource
 from app.utils.time import utc_now
@@ -10,7 +9,7 @@ from app.utils.time import utc_now
 LOG = logging.getLogger("UnstopDiscoverer")
 
 
-class UnstopDiscoverer(BaseDiscoverer):
+class UnstopDiscoverer:
     """
     Discovers Unstop hackathons via internal search API.
     """
