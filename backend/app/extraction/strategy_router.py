@@ -11,12 +11,16 @@ class StrategyRouter:
         "devfolio.co": ["traditional_scraper", "custom_ai_scraper"],
         "hack2skill.com": ["traditional_scraper", "custom_ai_scraper"],
         "devnovate.com": ["traditional_scraper", "custom_ai_scraper"],
-        "unstop.com": ["custom_ai_scraper", "gemini_grounding"],
-        "devpost.com": ["custom_ai_scraper", "gemini_grounding"],
-        "notion.so": ["gemini_grounding", "custom_ai_scraper"],
+        "unstop.com": ["custom_ai_scraper", "traditional_scraper"],  # Custom AI uses Jina!
+        "devpost.com": ["custom_ai_scraper", "traditional_scraper"],
+        "notion.so": ["custom_ai_scraper", "traditional_scraper"],
         "github.com": ["traditional_scraper", "custom_ai_scraper"],
-        "default": ["custom_ai_scraper", "traditional_scraper"]
+        "default": ["traditional_scraper", "custom_ai_scraper"]
     }
+
+
+
+
     
     ENGINE_MAPPING = {
         "traditional_scraper": ExtractionEngine.TRADITIONAL_SCRAPER,

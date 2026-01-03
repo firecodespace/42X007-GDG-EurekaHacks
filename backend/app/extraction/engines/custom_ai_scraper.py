@@ -1,14 +1,15 @@
 from typing import Dict, Any
 import json
+import re
 from app.extraction.engines.base_engine import BaseEngine
 from app.domain.extraction_result import ExtractionEngine
-from app.shared.http_client import http_client
+from app.shared.http_client import http_client, jina_reader
 from app.shared.logger import logger
 from app.config.gemini_config import get_gemini_model
 
 
 class CustomAIScraper(BaseEngine):
-    """Engine D: Custom AI scraper using Gemini for intelligent extraction"""
+    """Semantic AI scraper - extracts meaning, not just patterns"""
     
     def __init__(self):
         super().__init__(ExtractionEngine.CUSTOM_AI_SCRAPER)
@@ -17,124 +18,203 @@ class CustomAIScraper(BaseEngine):
     def _get_model(self):
         """Lazy load Gemini model"""
         if self.model is None:
-            self.model = get_gemini_model("gemini-1.5-flash")
+            self.model = get_gemini_model("models/gemini-2.5-flash")
         return self.model
     
     async def extract(self, url: str, platform: str) -> Dict[str, Any]:
-        """Extract data using Gemini AI"""
+        """Extract data using semantic understanding"""
         
-        html = await http_client.get(url)
+        # Use Jina Reader for JavaScript-heavy sites
+        if "unstop.com" in url or "devpost.com" in url:
+            logger.info(f"[CustomAI] Using Jina Reader for JS rendering: {url}")
+            html = await jina_reader.get(url)
+        else:
+            html = await http_client.get(url)
         
-        truncated_html = html[:15000]
+        # Send MORE context (Jina gives clean content, we can use more)
+        html_content = html[:50000]
         
-        prompt = self._build_extraction_prompt(truncated_html, url, platform)
+        prompt = self._build_semantic_prompt(html_content, url, platform)
         
         model = self._get_model()
         
         response = await self._generate_with_retry(model, prompt)
         
         try:
-            extracted_data = json.loads(response.text)
-            logger.info(f"[CustomAI] Successfully extracted structured data from {url}")
+            extracted_data = self._parse_json_response(response.text)
+            logger.info(f"[CustomAI] Semantically extracted data from {url}")
             return extracted_data
-        except json.JSONDecodeError as e:
-            logger.warning(f"[CustomAI] Failed to parse JSON, returning raw text: {e}")
+        except Exception as e:
+            logger.warning(f"[CustomAI] Semantic extraction failed: {e}")
             return {
-                "raw_extraction": response.text,
-                "extraction_method": "fallback"
+                "title": "",
+                "description": "",
+                "body_text": html_content,
+                "url": url
             }
     
-    def _build_extraction_prompt(self, html: str, url: str, platform: str) -> str:
-        """Build extraction prompt for Gemini"""
-        return f"""You are an expert at extracting hackathon and competition information from HTML pages.
+    def _build_semantic_prompt(self, html: str, url: str, platform: str) -> str:
+        """Build semantic extraction prompt"""
+        return f"""You are an intelligent web content extractor. Extract comprehensive event information with rich structured details.
 
-URL: {url}
-Platform: {platform}
+**URL:** {url}
+**Platform:** {platform}
 
-HTML Content (truncated):
+**HTML Content:**
 {html}
 
-Extract all relevant hackathon/competition information and return ONLY valid JSON with this exact structure:
+**Instructions:**
+Extract ALL available information about this event. Look for:
+- Event title and tagline
+- "About the Event" section with detailed description
+- Event flow, timeline, or phases
+- How the competition/hackathon works
+- Key highlights or features
+- Judging criteria
+- Deadlines and important dates
+- Prizes and rewards
+- Team size requirements
+- Eligibility criteria
+- Rules and guidelines
+- Problem statements or themes
+- All external links (registration, Discord, WhatsApp, etc.)
+
+Return this EXACT JSON structure:
 
 {{
-    "title": "event name",
-    "description": "detailed description of the event",
-    "deadlines": [
-        {{"type": "registration", "date": "2024-01-15T23:59:59Z", "label": "Registration Deadline"}},
-        {{"type": "submission", "date": "2024-02-20T23:59:59Z", "label": "Submission Deadline"}}
+  "title": "Full event title",
+  "description": "One-line summary (max 150 chars)",
+  "about": {{
+    "overview": "Comprehensive paragraph describing the event in detail",
+    "description_points": [
+      "Key point 1 about what the event is",
+      "Key point 2 about what participants will do",
+      "Key point 3 about the format or structure"
     ],
-    "prizes": [
-        "1st Prize: $10,000",
-        "2nd Prize: $5,000"
+    "event_flow": [
+      "Step 1: Registration phase details",
+      "Step 2: Competition/hackathon phases",
+      "Step 3: Judging and winner selection"
     ],
-    "mode": "online OR offline OR hybrid",
-    "location": "city, country OR online",
-    "organizer": {{
-        "name": "Organizer name",
-        "website": "https://organizer.com",
-        "email": "contact@organizer.com"
-    }},
-    "team_size": {{
-        "min": 1,
-        "max": 4
-    }},
-    "eligibility": "who can participate",
-    "rules": [
-        "rule 1",
-        "rule 2"
+    "how_it_works": [
+      "Explanation of process step 1",
+      "Explanation of process step 2"
     ],
-    "problem_statements": [
-        "theme 1",
-        "theme 2"
+    "key_highlights": [
+      "Highlight 1 (e.g., prizes, networking)",
+      "Highlight 2 (e.g., mentorship, workshops)"
     ],
-    "external_links": {{
-        "registration": "https://register.com",
-        "website": "https://event.com",
-        "whatsapp": "https://chat.whatsapp.com/...",
-        "discord": "https://discord.gg/...",
-        "telegram": null
-    }},
-    "confidence_score": 0.85
+    "judging_criteria": [
+      "Criterion 1 (e.g., innovation)",
+      "Criterion 2 (e.g., technical execution)"
+    ]
+  }},
+  "deadlines": [
+    {{"type": "registration", "date": "2024-01-15T23:59:59Z", "label": "Registration Closes"}},
+    {{"type": "submission", "date": "2024-02-20T23:59:59Z", "label": "Project Submission"}}
+  ],
+  "prizes": [
+    "1st Prize: ₹50,000 + Trophy",
+    "2nd Prize: ₹25,000",
+    "Participation certificates for all"
+  ],
+  "mode": "online",
+  "location": "Online / City, Country",
+  "organizer": {{
+    "name": "Organization Name",
+    "website": "https://...",
+    "email": "contact@..."
+  }},
+  "team_size": {{
+    "min": 1,
+    "max": 4
+  }},
+  "eligibility": "Open to students and professionals worldwide",
+  "rules": [
+    "Rule 1: Original work only",
+    "Rule 2: Code must be open source"
+  ],
+  "problem_statements": [
+    "Theme 1: AI for Healthcare",
+    "Theme 2: Fintech Innovation"
+  ],
+  "external_links": {{
+    "website": "https://...",
+    "registration": "https://...",
+    "whatsapp": "https://chat.whatsapp.com/...",
+    "discord": "https://discord.gg/...",
+    "telegram": null,
+    "linkedin": null,
+    "twitter": null,
+    "instagram": null
+  }},
+  "confidence_score": 0.9
 }}
 
-CRITICAL RULES:
-1. Return ONLY the JSON object, no markdown formatting, no extra text
-2. Use ISO 8601 format for all dates (YYYY-MM-DDTHH:MM:SSZ)
-3. If information is missing, use null
-4. Confidence score should be 0.0 to 1.0 based on data quality
-5. Extract ALL links (registration, official website, social media)
-6. Mode must be exactly: "online", "offline", or "hybrid"
-7. Ensure the JSON is valid and parseable
+**CRITICAL RULES:**
+- Extract ALL "About the Event" content into about.description_points as bullet points
+- Extract "Event Flow" or "Timeline" into about.event_flow
+- Look for sections like "Judging Criteria", "Key Highlights", "How it Works"
+- description = ONE short sentence summary
+- about.overview = full comprehensive paragraph
+- Each array should contain ACTUAL extracted content, not generic placeholders
+- If section doesn't exist, use empty array []
+- Use null for missing individual fields
+- Dates MUST be in ISO 8601 format
+- mode MUST be exactly: "online", "offline", or "hybrid"
+- confidence_score based on data completeness (0.0-1.0)
 
-Return the JSON now:"""
+JSON:"""
+    
+    def _parse_json_response(self, text: str) -> Dict[str, Any]:
+        """Parse JSON from Gemini response"""
+        text = text.strip()
+        
+        # Remove markdown
+        if "```json" in text:
+            match = re.search(r'```json\s*(.*?)\s*```', text, re.DOTALL)
+            if match:
+                text = match.group(1)
+        elif "```" in text:
+            match = re.search(r'```\s*(.*?)\s*```', text, re.DOTALL)
+            if match:
+                text = match.group(1)
+        
+        # Find JSON object
+        json_match = re.search(r'\{.*\}', text, re.DOTALL)
+        if json_match:
+            text = json_match.group(0)
+        
+        # Fix trailing commas
+        text = re.sub(r',\s*}', '}', text)
+        text = re.sub(r',\s*]', ']', text)
+        
+        return json.loads(text)
     
     async def _generate_with_retry(self, model, prompt: str, max_retries: int = 2):
-        """Generate content with retry logic"""
+        """Generate with retry"""
         for attempt in range(max_retries):
             try:
                 response = model.generate_content(
                     prompt,
                     generation_config={
-                        "temperature": 0.1,
-                        "top_p": 0.8,
-                        "top_k": 40,
-                        "max_output_tokens": 2048,
+                        "temperature": 0.15,  # Slightly increased for better content extraction
+                        "top_p": 0.9,
+                        "max_output_tokens": 8192,  # Increased for rich content
+                        "response_mime_type": "application/json"
                     }
                 )
                 return response
             except Exception as e:
-                logger.warning(f"[CustomAI] Generation attempt {attempt + 1} failed: {e}")
+                logger.warning(f"[CustomAI] Attempt {attempt + 1} failed: {e}")
                 if attempt == max_retries - 1:
                     raise
-        
-        raise Exception("Max retries exceeded for Gemini generation")
+        raise Exception("Max retries exceeded")
     
     def supports_url(self, url: str) -> bool:
-        """Custom AI scraper supports all URLs"""
         return True
     
     async def health_check(self) -> bool:
-        """Check if Gemini model is accessible"""
         try:
             model = self._get_model()
             test_response = model.generate_content("ping")

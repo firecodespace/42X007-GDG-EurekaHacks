@@ -75,3 +75,36 @@ class HTTPClient:
 
 
 http_client = HTTPClient()
+
+class JinaReaderClient:
+    """Use Jina AI Reader for JavaScript-heavy sites"""
+    
+    BASE_URL = "https://r.jina.ai/"
+    
+    async def get(self, url: str) -> str:
+        """
+        Fetch URL using Jina Reader (handles JS rendering)
+        
+        Args:
+            url: URL to fetch
+            
+        Returns:
+            Clean, readable content
+        """
+        try:
+            jina_url = f"{self.BASE_URL}{url}"
+            
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.get(jina_url)
+                response.raise_for_status()
+                
+                content = response.text
+                logger.info(f"Successfully fetched with Jina Reader: {url}")
+                return content
+                
+        except Exception as e:
+            logger.error(f"Jina Reader fetch failed for {url}: {e}")
+            raise ScraperError(f"Failed to fetch {url} with Jina Reader: {e}")
+
+
+jina_reader = JinaReaderClient()

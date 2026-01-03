@@ -16,7 +16,7 @@ def initialize_gemini() -> None:
         raise
 
 
-def get_gemini_model(model_name: str = "gemini-1.5-flash"):
+def get_gemini_model(model_name: str = "models/gemini-2.5-flash"):
     """Get Gemini model instance"""
     global _gemini_model
     

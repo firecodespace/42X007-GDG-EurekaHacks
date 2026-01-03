@@ -15,7 +15,7 @@ class GeminiGrounding(BaseEngine):
     def _get_model(self):
         """Lazy load Gemini model with grounding"""
         if self.model is None:
-            self.model = get_gemini_model("gemini-1.5-flash")
+            self.model = get_gemini_model("models/gemini-2.5-flash")
         return self.model
     
     async def extract(self, url: str, platform: str) -> Dict[str, Any]:

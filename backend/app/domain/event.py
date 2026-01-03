@@ -120,3 +120,36 @@ class EventResponse(BaseModel):
     source_platform: str
     confidence_score: float
     created_at: datetime
+
+class AboutSection(BaseModel):
+    """Detailed about section with structured content"""
+    overview: Optional[str] = None
+    description_points: List[str] = Field(default_factory=list)
+    event_flow: List[str] = Field(default_factory=list)
+    how_it_works: List[str] = Field(default_factory=list)
+    key_highlights: List[str] = Field(default_factory=list)
+    judging_criteria: List[str] = Field(default_factory=list)
+
+
+# Update the Event model to include the new field
+class Event(BaseModel):
+    id: Optional[str] = None
+    title: str
+    description: str  # Keep short summary for list views
+    about: Optional[AboutSection] = None  # NEW: Detailed structured content
+    mode: EventMode
+    location: str
+    organizer: Organizer
+    deadlines: List[Deadline] = Field(default_factory=list)
+    prizes: List[str] = Field(default_factory=list)
+    external_links: ExternalLinks = Field(default_factory=ExternalLinks)
+    team_size: Optional[TeamSize] = None
+    eligibility: Optional[str] = None
+    rules: List[str] = Field(default_factory=list)
+    problem_statements: List[str] = Field(default_factory=list)
+    source_url: str
+    source_platform: str
+    confidence_score: float = 0.0
+    raw_data: Optional[Dict[str, Any]] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
