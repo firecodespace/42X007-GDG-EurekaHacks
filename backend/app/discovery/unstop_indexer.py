@@ -39,7 +39,7 @@ class UnstopIndexer(BaseIndexer):
         base_url: str, 
         max_pages: Optional[int]
     ) -> List[str]:
-        """Scrape listing pages for event URLs"""
+        """Scrape listing pages for event URLs using Jina Reader"""
         urls = []
         
         try:
@@ -48,15 +48,24 @@ class UnstopIndexer(BaseIndexer):
                 
                 logger.info(f"[Unstop] Scraping page {page}: {page_url}")
                 
-                html = await http_client.get(page_url)
+                # Use Jina Reader to render JavaScript
+                jina_url = f"https://r.jina.ai/{page_url}"
+                html = await http_client.get(jina_url)
+                
+                # Extract URLs from rendered content
+                page_urls = self._extract_event_urls_from_text(html)
+                
+                # Also try traditional parsing as fallback
                 soup = BeautifulSoup(html, 'lxml')
+                traditional_urls = self._extract_event_urls(soup)
                 
-                page_urls = self._extract_event_urls(soup)
-                urls.extend(page_urls)
+                # Combine both methods
+                all_urls = list(set(page_urls + traditional_urls))
+                urls.extend(all_urls)
                 
-                logger.info(f"[Unstop] Found {len(page_urls)} URLs on page {page}")
+                logger.info(f"[Unstop] Found {len(all_urls)} URLs on page {page}")
                 
-                if not page_urls:
+                if not all_urls:
                     logger.info(f"[Unstop] No more URLs found, stopping pagination")
                     break
                 
@@ -65,14 +74,35 @@ class UnstopIndexer(BaseIndexer):
         
         return urls
     
+    def _extract_event_urls_from_text(self, text: str) -> List[str]:
+        """Extract URLs from rendered text content"""
+        urls = []
+        
+        # Look for Unstop event URLs in the text
+        patterns = [
+            r'https://unstop\.com/competitions/[a-zA-Z0-9\-]+\-\d+',
+            r'https://unstop\.com/hackathons/[a-zA-Z0-9\-]+\-\d+',
+            r'unstop\.com/competitions/[a-zA-Z0-9\-]+\-\d+',
+            r'unstop\.com/hackathons/[a-zA-Z0-9\-]+\-\d+'
+        ]
+        
+        for pattern in patterns:
+            matches = re.findall(pattern, text)
+            for match in matches:
+                if not match.startswith('http'):
+                    match = f"https://{match}"
+                if self._is_valid_event_url(match):
+                    urls.append(match)
+        
+        return list(set(urls))
+    
     def _extract_event_urls(self, soup: BeautifulSoup) -> List[str]:
-        """Extract event URLs from listing page"""
+        """Extract event URLs from HTML soup (traditional method)"""
         urls = []
         
         event_link_patterns = [
-            r'/competitions/[^/\s]+',
-            r'/hackathons/[^/\s]+',
-            r'/o/[^/\s]+/opportunity/[^/\s]+'
+            r'/competitions/[a-zA-Z0-9\-]+\-\d+',
+            r'/hackathons/[a-zA-Z0-9\-]+\-\d+'
         ]
         
         for link in soup.find_all('a', href=True):
@@ -87,13 +117,15 @@ class UnstopIndexer(BaseIndexer):
                         urls.append(href)
                         break
         
-        urls = list(set(urls))
-        
-        return urls
+        return list(set(urls))
     
     def _is_valid_event_url(self, url: str) -> bool:
         """Validate if URL is a proper event page"""
         if not is_valid_url(url):
+            return False
+        
+        # Must have numeric ID at the end
+        if not re.search(r'\-\d+$', url):
             return False
         
         excluded_patterns = [
@@ -104,7 +136,9 @@ class UnstopIndexer(BaseIndexer):
             '/profile',
             '/search',
             '/filter',
-            '/page='
+            '?page=',
+            '/user/',
+            '/organisation/'
         ]
         
         for pattern in excluded_patterns:
@@ -116,9 +150,8 @@ class UnstopIndexer(BaseIndexer):
     async def is_event_url(self, url: str) -> bool:
         """Check if URL is an Unstop event page"""
         event_patterns = [
-            r'unstop\.com/competitions/[^/\s]+',
-            r'unstop\.com/hackathons/[^/\s]+',
-            r'unstop\.com/o/[^/\s]+/opportunity/'
+            r'unstop\.com/competitions/[a-zA-Z0-9\-]+\-\d+',
+            r'unstop\.com/hackathons/[a-zA-Z0-9\-]+\-\d+'
         ]
         
         for pattern in event_patterns:
