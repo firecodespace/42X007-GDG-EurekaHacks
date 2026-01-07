@@ -9,6 +9,7 @@ from app.shared.logger import logger
 from app.config.firebase_config import initialize_firebase
 from app.config.gemini_config import initialize_gemini
 from app.queue.scheduler import automated_scheduler
+from app.api.v1 import personalization
 
 load_dotenv()
 
@@ -61,6 +62,12 @@ app.add_middleware(
 # Include API routes
 app.include_router(api_router, prefix="/api/v1")
 
+
+app.include_router(
+    personalization.router,
+    prefix="/api/v1/personalization",
+    tags=["personalization"]
+)
 
 @app.get("/")
 async def root():
