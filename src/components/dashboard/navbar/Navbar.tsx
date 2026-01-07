@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useId, useRef, useState } from "react";
 import { NAV_LINKS } from "./nav-links";
 import { Button } from "@/components/ui/Button";
@@ -51,8 +52,17 @@ export function Navbar() {
                             "py-3",
                         ].join(" ")}
                     >
-                        <Link href="/" className="text-3xl font-semibold tracking-tight text-white">
-                            HackFlix
+                        <Link href="/" className="flex items-center gap-2.5">
+                            <Image
+                                src="/Union.svg"
+                                alt="HackFlix Logo"
+                                width={32}
+                                height={32}
+                                className="h-8 w-8"
+                            />
+                            <span className="text-3xl font-semibold tracking-tight text-white">
+                                HackFlix
+                            </span>
                         </Link>
 
                         {/* Desktop nav */}
@@ -122,7 +132,16 @@ export function Navbar() {
                         ].join(" ")}
                     >
                         <div className="flex items-center justify-between">
-                            <span className="text-lg font-semibold text-white">HackFlix</span>
+                            <div className="flex items-center gap-2">
+                                <Image
+                                    src="/Union.svg"
+                                    alt="HackFlix Logo"
+                                    width={24}
+                                    height={24}
+                                    className="h-6 w-6"
+                                />
+                                <span className="text-lg font-semibold text-white">HackFlix</span>
+                            </div>
                             <button
                                 type="button"
                                 className="h-[45px] px-2 text-white/80 hover:text-white"
