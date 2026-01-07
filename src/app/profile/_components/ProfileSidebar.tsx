@@ -1,9 +1,17 @@
+// src/app/profile/_components/ProfileSidebar.tsx
 "use client";
 
 import ProfileNavItem from "./ProfileNavItem";
 import { BarChart3, Bookmark, Flag, Settings, User, Users } from "lucide-react";
+import { useProfile } from "@/lib/profile/useProfile";
 
 export default function ProfileSidebar() {
+    const { profile, loading } = useProfile();
+
+    const greetingName = !loading && profile?.name
+        ? profile.name.split(" ")[0]
+        : "there";
+
     return (
         <div className="w-full">
             {/* avatar */}
@@ -13,7 +21,9 @@ export default function ProfileSidebar() {
                 </div>
 
                 <div className="min-w-0">
-                    <div className="text-lg text-white/90 truncate">Hello there!</div>
+                    <div className="text-lg text-white/90 truncate">
+                        Hello, {greetingName}!
+                    </div>
                     <div className="text-sm text-white/60 truncate">Your profile</div>
                 </div>
             </div>

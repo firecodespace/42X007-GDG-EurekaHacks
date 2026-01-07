@@ -1,25 +1,19 @@
-import { auth, db } from "@/lib/auth/firebaseClient";
-import { doc, serverTimestamp, setDoc } from "firebase/firestore";
+// src/lib/profile/upsertProfile.ts
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { db } from "@/lib/auth/firebaseClient";
 import type { OnboardingDraft } from "@/lib/onboarding/store";
+import { useAuthUser } from "@/lib/auth/useAuthUser";
 
 export async function upsertUserProfileFromDraft(draft: OnboardingDraft) {
-    const user = auth.currentUser;
-    if (!user) throw new Error("Not signed in.");
-
-    const ref = doc(db, "users", user.uid);
+    // Get current user from auth
+    const { user } = useAuthUser();
+    if (!user?.uid) throw new Error("No authenticated user");
 
     await setDoc(
-        ref,
+        doc(db, "users", user.uid),
         {
             uid: user.uid,
-            name: draft.name || user.displayName || "",
-            email: draft.email || user.email || "",
-            phone: draft.phone || user.phoneNumber || "",
-            university: draft.university,
-            course: draft.course,
-            username: draft.username,
-            googleConnected: draft.googleConnected,
-            onboardingComplete: true,
+            ...draft,
             updatedAt: serverTimestamp(),
             createdAt: serverTimestamp(),
         },

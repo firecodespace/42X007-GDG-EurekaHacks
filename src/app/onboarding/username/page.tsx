@@ -26,7 +26,7 @@ export default function OnboardingUsernamePage() {
                         value={draft.username}
                         onChange={(v) => setDraft((p) => ({ ...p, username: v }))}
                         canContinue={canContinue}
-                        onContinue={() => router.push("/onboarding/setup")}
+                        onContinue={() => router.push("/onboarding/review")}
                         onBack={() => router.back()}
                     />
                 </div>

@@ -1,15 +1,18 @@
-import { create } from "zustand";
+// src/lib/onboarding/navDirection.ts
+"use client";
 
-type Dir = 1 | -1;
+import { usePathname } from "next/navigation";
+import { useEffect } from "react";
 
-type NavDirState = {
-    dir: Dir;
-    forward: () => void;
-    back: () => void;
-};
+export function useNavDirection() {
+    const pathname = usePathname();
 
-export const useNavDirection = create<NavDirState>((set) => ({
-    dir: 1,
-    forward: () => set({ dir: 1 }),
-    back: () => set({ dir: -1 }),
-}));
+    const forward = () => {
+        // Remove onboarding prefix and go to next logical step
+        const step = pathname.replace("/onboarding/", "");
+        // Your existing nav logic here
+        console.log("Navigating forward from:", step);
+    };
+
+    return { forward };
+}
