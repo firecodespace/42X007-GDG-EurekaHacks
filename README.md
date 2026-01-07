@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./public/hackflix_logo.jpg" alt="HackFlix Logo" width="250"/>
+  <img src="./public/Union.png" alt="HackFlix Logo" width="250"/>
 </p>
 
 <h1 align="center">🧠 HackFlix</h1>
