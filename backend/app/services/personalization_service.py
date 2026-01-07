@@ -3,6 +3,7 @@ from typing import Dict, Any
 from app.models.user_profile import UserProfile
 from app.domain.event import Event
 from app.config.gemini_config import get_gemini_model
+from app.services.recommendation_cache import recommendation_cache
 from app.shared.logger import logger
 
 
@@ -15,11 +16,23 @@ class PersonalizationService:
     async def personalize_event(
         self, 
         event: Event, 
-        user_profile: UserProfile
+        user_profile: UserProfile,
+        use_cache: bool = True
     ) -> Dict[str, Any]:
         """Generate personalized event description using Gemini"""
         
         try:
+            event_id = event.id
+            
+            # Check cache first
+            if use_cache:
+                cached = await recommendation_cache.get_cached(user_profile.user_id, event_id)
+                if cached:
+                    logger.info(f"[Personalization] ⚡ Using cached for: {event_id}")
+                    enhanced_event = event.dict()
+                    enhanced_event["personalization"] = cached
+                    return enhanced_event
+            
             logger.info(f"[Personalization] Starting for event: {event.title}")
             
             # Build context-rich prompt
@@ -27,7 +40,7 @@ class PersonalizationService:
             
             logger.info(f"[Personalization] Calling Gemini API...")
             
-            # Call Gemini API with timeout
+            # Call Gemini API with strict JSON output
             response = self.model.generate_content(
                 prompt,
                 generation_config={
@@ -43,6 +56,14 @@ class PersonalizationService:
             # Parse JSON response
             personalized_data = self._parse_gemini_response(response.text)
             
+            # Cache the result (only if no error)
+            if "error" not in personalized_data:
+                await recommendation_cache.set_cached(
+                    user_profile.user_id, 
+                    event_id, 
+                    personalized_data
+                )
+            
             # Merge with original event data
             enhanced_event = event.dict()
             enhanced_event["personalization"] = personalized_data
@@ -55,13 +76,9 @@ class PersonalizationService:
         except Exception as e:
             logger.error(f"[Personalization] ❌ Error: {e}", exc_info=True)
             
-            # Return event with error personalization
+            # Return event with fallback personalization
             enhanced_event = event.dict()
-            enhanced_event["personalization"] = {
-                "error": str(e),
-                "personalized_description": "Unable to generate personalization at this time.",
-                "match_score": 50
-            }
+            enhanced_event["personalization"] = self._get_fallback_personalization(str(e))
             return enhanced_event
     
     def _build_personalization_prompt(
@@ -72,57 +89,62 @@ class PersonalizationService:
         """Build AI prompt with event + user context"""
         
         # Extract user context
-        user_skills = ", ".join(user_profile.skills) if user_profile.skills else "None"
-        user_interests = ", ".join(user_profile.interests) if user_profile.interests else "None"
+        user_skills = ", ".join(user_profile.skills[:5]) if user_profile.skills else "None"
+        user_interests = ", ".join(user_profile.interests[:5]) if user_profile.interests else "None"
         user_experience = user_profile.experience_level
         
-        # Extract event context (simplified to avoid token limits)
-        event_summary = {
-            "title": event.title,
-            "description": event.description,
-            "organizer": event.organizer.name if event.organizer else "Unknown",
-            "mode": event.mode,
-            "eligibility": event.eligibility,
-            "team_size": event.team_size.dict() if event.team_size else {}
-        }
+        # Extract event context (simplified)
+        event_title = event.title
+        event_desc = event.description[:300] if event.description else "No description"
+        event_org = event.organizer.name if event.organizer else "Unknown"
+        event_mode = event.mode
         
-        prompt = f"""You are a personalized hackathon recommendation assistant. Analyze the event and user profile, then generate a personalized JSON response.
+        prompt = f"""You are a JSON API. Return ONLY valid JSON with NO markdown, NO explanations, NO code blocks.
 
-**EVENT DATA:**
-{json.dumps(event_summary, indent=2)}
+EVENT:
+Title: {event_title}
+Description: {event_desc}
+Organizer: {event_org}
+Mode: {event_mode}
 
-**USER PROFILE:**
-- Skills: {user_skills}
-- Interests: {user_interests}
-- Experience Level: {user_experience}
-- Past Events: {len(user_profile.events_attended)}
-- Projects: {len(user_profile.projects)}
+USER:
+Skills: {user_skills}
+Interests: {user_interests}
+Experience: {user_experience}
 
-**TASK:** Generate ONLY a valid JSON object (no markdown, no explanations) with these exact fields:
-
+Return this EXACT JSON structure (replace placeholder text with real content):
 {{
-  "personalized_description": "A 150-word engaging description tailored to this user's skills and interests",
-  "why_you_should_participate": "A 100-word explanation of why this user should join",
-  "skills_you_will_learn": ["skill1", "skill2", "skill3", "skill4", "skill5"],
-  "skills_required": [{{"skill": "Python", "user_has": true}}, {{"skill": "React", "user_has": false}}],
+  "personalized_description": "Write 100-150 words explaining why this event fits this specific user based on their skills and interests",
+  "why_you_should_participate": "Write 80-100 words on concrete benefits for THIS user",
+  "skills_you_will_learn": ["specific_skill_1", "specific_skill_2", "specific_skill_3", "specific_skill_4", "specific_skill_5"],
+  "skills_required": [{{"skill": "example_skill", "user_has": true}}],
   "match_score": 85,
-  "personalized_tips": ["tip1", "tip2", "tip3"],
+  "personalized_tips": ["actionable_tip_1", "actionable_tip_2", "actionable_tip_3"],
   "challenge_level": "perfect-fit",
-  "networking_opportunities": "Brief description of networking value"
+  "networking_opportunities": "One sentence about who they will meet"
 }}
 
-Return ONLY the JSON object above. No other text."""
+CRITICAL RULES:
+1. Return ONLY the JSON object
+2. NO ``` markers
+3. NO "json" label
+4. NO explanatory text
+5. Ensure all strings are properly quoted
+6. Match score must be 0-100
+7. Challenge level must be: "perfect-fit" OR "slight-stretch" OR "ambitious"
+
+START JSON NOW:"""
         
         return prompt
     
     def _parse_gemini_response(self, response_text: str) -> Dict[str, Any]:
-        """Parse Gemini's JSON response"""
+        """Parse Gemini's JSON response with robust error handling"""
         
         try:
-            # Remove markdown code blocks if present
+            # Clean response aggressively
             cleaned = response_text.strip()
             
-            # Remove ```json and ``` markers
+            # Remove markdown code blocks
             if cleaned.startswith("```json"):
                 cleaned = cleaned[7:]
             elif cleaned.startswith("```"):
@@ -133,30 +155,80 @@ Return ONLY the JSON object above. No other text."""
             
             cleaned = cleaned.strip()
             
-            logger.info(f"[Personalization] Cleaned response: {cleaned[:200]}...")
+            # Find JSON boundaries
+            start = cleaned.find('{')
+            end = cleaned.rfind('}')
+            
+            if start != -1 and end != -1:
+                cleaned = cleaned[start:end+1]
+            
+            logger.info(f"[Personalization] Attempting parse: {cleaned[:200]}...")
             
             # Parse JSON
             parsed = json.loads(cleaned)
             
-            logger.info(f"[Personalization] ✅ Successfully parsed JSON")
+            # Validate and fill missing fields
+            required_fields = {
+                "personalized_description": "This event aligns with your profile.",
+                "why_you_should_participate": "Great opportunity to apply your skills.",
+                "skills_you_will_learn": ["Problem solving", "Team collaboration", "Critical thinking"],
+                "skills_required": [],
+                "match_score": 50,
+                "personalized_tips": ["Prepare thoroughly", "Network actively", "Showcase your skills"],
+                "challenge_level": "moderate",
+                "networking_opportunities": "Connect with peers and professionals"
+            }
+            
+            for field, default in required_fields.items():
+                if field not in parsed or parsed[field] is None:
+                    logger.warning(f"[Personalization] Missing field '{field}', using default")
+                    parsed[field] = default
+            
+            # Validate match_score range
+            if not isinstance(parsed["match_score"], (int, float)) or not (0 <= parsed["match_score"] <= 100):
+                parsed["match_score"] = 50
+            
+            # Validate challenge_level
+            valid_levels = ["perfect-fit", "slight-stretch", "ambitious", "moderate"]
+            if parsed["challenge_level"] not in valid_levels:
+                parsed["challenge_level"] = "moderate"
+            
+            logger.info(f"[Personalization] ✅ Successfully parsed and validated JSON")
             
             return parsed
             
         except json.JSONDecodeError as e:
             logger.error(f"[Personalization] ❌ JSON parse error: {e}")
-            logger.error(f"[Personalization] Response text: {response_text[:500]}")
+            logger.error(f"[Personalization] Raw response (first 500 chars): {response_text[:500]}")
             
-            return {
-                "personalized_description": "Unable to generate personalized description",
-                "why_you_should_participate": "This event matches your profile",
-                "skills_you_will_learn": ["Problem solving", "Team collaboration"],
-                "skills_required": [],
-                "match_score": 50,
-                "personalized_tips": ["Prepare well", "Network actively"],
-                "challenge_level": "moderate",
-                "networking_opportunities": "Meet like-minded participants",
-                "error": str(e)
-            }
+            return self._get_fallback_personalization(f"JSON parse error: {str(e)}")
+    
+    def _get_fallback_personalization(self, error_msg: str = "") -> Dict[str, Any]:
+        """Return safe fallback personalization when AI fails"""
+        return {
+            "personalized_description": "This competition offers an excellent opportunity to apply your technical skills in a practical, real-world setting. The challenge aligns with your background and provides a platform to showcase your abilities while learning from peers.",
+            "why_you_should_participate": "Participating will help you gain hands-on experience, expand your professional network, and add a valuable achievement to your portfolio. The competition format encourages creative problem-solving and collaborative teamwork.",
+            "skills_you_will_learn": [
+                "Problem solving",
+                "Team collaboration", 
+                "Critical thinking",
+                "Presentation skills",
+                "Strategic planning"
+            ],
+            "skills_required": [
+                {"skill": "Analytical thinking", "user_has": True},
+                {"skill": "Communication", "user_has": False}
+            ],
+            "match_score": 50,
+            "personalized_tips": [
+                "Research the problem statement thoroughly before starting",
+                "Form a diverse team with complementary skills",
+                "Practice your presentation to communicate ideas clearly"
+            ],
+            "challenge_level": "moderate",
+            "networking_opportunities": "Connect with fellow participants, industry mentors, and potential collaborators in your field",
+            "error": error_msg if error_msg else None
+        }
 
 
 personalization_service = PersonalizationService()

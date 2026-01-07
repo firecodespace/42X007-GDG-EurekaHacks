@@ -2,7 +2,6 @@ import firebase_admin
 from firebase_admin import credentials, firestore
 from google.cloud.firestore import Client
 from app.config.settings import settings
-from app.shared.logger import logger
 
 
 _firestore_client: Client | None = None
@@ -16,10 +15,14 @@ def initialize_firebase() -> None:
             firebase_admin.initialize_app(cred, {
                 'projectId': settings.firebase_project_id,
             })
+            # Import logger here to avoid circular import
+            from app.shared.logger import logger
             logger.info("Firebase initialized successfully")
         else:
+            from app.shared.logger import logger
             logger.info("Firebase already initialized")
     except Exception as e:
+        from app.shared.logger import logger
         logger.error(f"Failed to initialize Firebase: {e}")
         raise
 
@@ -31,8 +34,10 @@ def get_firestore_client() -> Client:
     if _firestore_client is None:
         try:
             _firestore_client = firestore.client()
+            from app.shared.logger import logger
             logger.info("Firestore client created successfully")
         except Exception as e:
+            from app.shared.logger import logger
             logger.error(f"Failed to create Firestore client: {e}")
             raise
     
@@ -45,4 +50,5 @@ def close_firebase() -> None:
     
     if _firestore_client is not None:
         _firestore_client = None
+        from app.shared.logger import logger
         logger.info("Firestore client closed")

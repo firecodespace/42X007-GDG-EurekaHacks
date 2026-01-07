@@ -4,15 +4,15 @@ from contextlib import asynccontextmanager
 import os
 from dotenv import load_dotenv
 
-from app.api.v1 import api_router
 from app.shared.logger import logger
 from app.config.firebase_config import initialize_firebase
 from app.config.gemini_config import initialize_gemini
 from app.queue.scheduler import automated_scheduler
-from app.api.v1 import personalization
+
+# Import individual routers
+from app.api.v1 import events, queue, personalization, profiles, recommendations
 
 load_dotenv()
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -24,13 +24,9 @@ async def lifespan(app: FastAPI):
     initialize_firebase()
     initialize_gemini()
     
-    # Start automated scheduler if enabled
-    scheduler_enabled = os.getenv("SCHEDULER_ENABLED", "false").lower() == "true"
-    if scheduler_enabled:
-        automated_scheduler.start()
-        logger.info("✅ Automated scheduler started")
-    else:
-        logger.info("⚠️  Automated scheduler is DISABLED (set SCHEDULER_ENABLED=true to enable)")
+    # Start automated scheduler
+    automated_scheduler.start()
+    logger.info("✅ Automated scheduler started")
     
     logger.info("All services initialized successfully")
     
@@ -38,10 +34,8 @@ async def lifespan(app: FastAPI):
     
     # Shutdown
     logger.info("Shutting down HackFlix Backend...")
-    if scheduler_enabled:
-        automated_scheduler.stop()
-        logger.info("Scheduler stopped")
-
+    automated_scheduler.stop()
+    logger.info("Scheduler stopped")
 
 app = FastAPI(
     title="HackFlix API",
@@ -53,20 +47,41 @@ app = FastAPI(
 # CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.getenv("CORS_ORIGINS", "http://localhost:3000").split(","),
+    allow_origins=["*"],  # Allow all for development
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Include API routes
-app.include_router(api_router, prefix="/api/v1")
+# Register all routers
+app.include_router(
+    events.router,
+    prefix="/api/v1/events",
+    tags=["Events"]
+)
 
+app.include_router(
+    queue.router,
+    prefix="/api/v1/queue",
+    tags=["Queue"]
+)
 
 app.include_router(
     personalization.router,
     prefix="/api/v1/personalization",
-    tags=["personalization"]
+    tags=["Personalization"]
+)
+
+app.include_router(
+    profiles.router,
+    prefix="/api/v1/profiles",
+    tags=["Profiles"]
+)
+
+app.include_router(
+    recommendations.router,
+    prefix="/api/v1/recommendations",
+    tags=["Recommendations"]
 )
 
 @app.get("/")
