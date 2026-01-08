@@ -88,7 +88,7 @@ class QueueManager:
     
     async def get_next_batch(self, batch_size: int = 5) -> List[Dict[str, Any]]:
         """
-        Get next batch of URLs to process
+        Get next batch of URLs to process (NO INDEX REQUIRED)
         
         Args:
             batch_size: Number of URLs to fetch
@@ -97,12 +97,9 @@ class QueueManager:
             List of queue items
         """
         try:
-            # Get pending items that are ready for processing
+            # Simple query without order_by - NO INDEX NEEDED
             query = self.db.collection(self.QUEUE_COLLECTION)\
                 .where("status", "==", QueueStatus.PENDING)\
-                .where("next_retry_at", "<=", datetime.utcnow())\
-                .order_by("priority", direction="DESCENDING")\
-                .order_by("created_at")\
                 .limit(batch_size)
             
             items = []
@@ -183,7 +180,8 @@ class QueueManager:
                 "pending": 0,
                 "processing": 0,
                 "completed": 0,
-                "failed": 0
+                "failed": 0,
+                "rate_limited": 0
             }
             
             for status in QueueStatus:

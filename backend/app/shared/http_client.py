@@ -76,6 +76,7 @@ class HTTPClient:
 
 http_client = HTTPClient()
 
+
 class JinaReaderClient:
     """Use Jina AI Reader for JavaScript-heavy sites"""
     

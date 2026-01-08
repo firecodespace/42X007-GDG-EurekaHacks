@@ -27,55 +27,48 @@ class UnstopIndexer(BaseIndexer):
         return urls
     
     def _scrape_with_selenium(self, max_pages: int) -> List[str]:
-        """Scrape using Selenium with undetected ChromeDriver"""
+        """Scrape using Selenium"""
         import undetected_chromedriver as uc
+        from selenium.webdriver.common.by import By
+        from selenium.webdriver.support.ui import WebDriverWait
+        from selenium.webdriver.support import expected_conditions as EC
         import time
         
         urls = set()
         
         try:
-            logger.info("[Unstop] Launching undetected Chrome...")
+            logger.info("[Unstop] Launching browser...")
             
             options = uc.ChromeOptions()
             options.add_argument('--headless=new')
             options.add_argument('--no-sandbox')
             options.add_argument('--disable-dev-shm-usage')
-            options.add_argument('--disable-blink-features=AutomationControlled')
             
-            # Auto-detect Chrome version
-            driver = uc.Chrome(options=options, use_subprocess=True)
+            driver = uc.Chrome(options=options)
             
             categories = ["/hackathons", "/competitions"]
             
             for category in categories:
                 try:
                     url = f"{self.BASE_URL}{category}"
-                    logger.info(f"[Unstop] Navigating to: {url}")
+                    logger.info(f"[Unstop] Scraping: {url}")
                     
                     driver.get(url)
                     
-                    # Wait for JavaScript to load
-                    logger.info("[Unstop] Waiting for content to load...")
-                    time.sleep(5)
+                    # Wait for content to load
+                    time.sleep(3)
                     
-                    # Scroll to trigger lazy loading
-                    logger.info("[Unstop] Scrolling to load more events...")
-                    for i in range(5):
+                    # Scroll to load more
+                    for _ in range(3):
                         driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-                        time.sleep(2)
+                        time.sleep(1)
                     
-                    # Get page source after JavaScript execution
+                    # Extract all links
                     page_html = driver.page_source
                     
-                    # Extract event URLs using regex
-                    pattern = rf'href="({category}/[a-zA-Z0-9\-]+\-\d+)"'
-                    matches = re.findall(pattern, page_html)
-                    
-                    found_urls = []
-                    for match in matches:
-                        full_url = f"{self.BASE_URL}{match}"
-                        if self._is_valid_event_url(full_url):
-                            found_urls.append(full_url)
+                    # Find event URLs
+                    pattern = rf'{self.BASE_URL}{category}/[a-zA-Z0-9\-]+\-\d+'
+                    found_urls = re.findall(pattern, page_html)
                     
                     urls.update(found_urls)
                     
@@ -85,30 +78,11 @@ class UnstopIndexer(BaseIndexer):
                     logger.error(f"[Unstop] Error scraping {category}: {e}")
             
             driver.quit()
-            logger.info(f"[Unstop] Total unique URLs discovered: {len(urls)}")
             
         except Exception as e:
             logger.error(f"[Unstop] Selenium error: {e}")
         
         return list(urls)
-    
-    def _is_valid_event_url(self, url: str) -> bool:
-        """Validate if URL is a proper event page"""
-        # Must contain competitions or hackathons
-        if not ('/competitions/' in url or '/hackathons/' in url):
-            return False
-        
-        # Must have numeric ID at the end
-        if not re.search(r'\-\d+$', url):
-            return False
-        
-        # Exclude non-event pages
-        excluded = ['/apply', '/register', '/login', '/signup', '/profile', '/search', '/filter']
-        for ex in excluded:
-            if ex in url:
-                return False
-        
-        return True
     
     async def is_event_url(self, url: str) -> bool:
         """Check if URL is an Unstop event page"""
